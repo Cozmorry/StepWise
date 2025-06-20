@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "935330614006",
+    "project_id": "stepwise-53c18",
+    "storage_bucket": "stepwise-53c18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935330614006:android:8f74efa593ae7fb2047ad7",
+        "android_client_info": {
+          "package_name": "com.example.stepwise"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "935330614006-puo5bv533htjoaaevcv7or2228b3nbhi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.stepwise",
+            "certificate_hash": "80fab335cd9d09abd3e36a12ee2a2995dd3db39e"
+          }
+        },
+        {
+          "client_id": "935330614006-n8bsl2rfgombqgmejn96s8b9ts3ki3lm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBGy-QhOkEwzhOY8AU8nN5FSro-GMmrO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "935330614006-n8bsl2rfgombqgmejn96s8b9ts3ki3lm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
