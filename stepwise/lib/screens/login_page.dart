@@ -44,6 +44,31 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _signInWithEmail() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final email = emailController.text.trim();
+      final password = passwordController.text.trim();
+      if (email.isEmpty || password.isEmpty) {
+        setState(() { _error = 'Email and password are required.'; _loading = false; });
+        return;
+      }
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() { _error = e.message; });
+    } catch (e) {
+      setState(() { _error = e.toString(); });
+    } finally {
+      setState(() { _loading = false; });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,10 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        // For demo: Navigate to dashboard
-                        Navigator.pushReplacementNamed(context, '/dashboard');
-                      },
+                      onPressed: _signInWithEmail,
                       child: Text('LOGIN', style: AppTextStyles.button),
                     ),
                   ),

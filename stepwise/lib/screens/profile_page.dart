@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../main.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -23,6 +25,51 @@ class ProfilePageState extends State<ProfilePage> {
   final String height = "5'3\"";
   final String goal = '2000 steps/day';
 
+  void _showThemeDialog() {
+    final themeNotifier = Provider.of<ThemeModeNotifier>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (context) {
+        ThemeMode current = themeNotifier.themeMode;
+        return AlertDialog(
+          title: const Text('Choose Theme'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ThemeMode>(
+                title: const Text('System'),
+                value: ThemeMode.system,
+                groupValue: current,
+                onChanged: (val) {
+                  themeNotifier.setThemeMode(ThemeMode.system);
+                  Navigator.pop(context);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Light'),
+                value: ThemeMode.light,
+                groupValue: current,
+                onChanged: (val) {
+                  themeNotifier.setThemeMode(ThemeMode.light);
+                  Navigator.pop(context);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Dark'),
+                value: ThemeMode.dark,
+                groupValue: current,
+                onChanged: (val) {
+                  themeNotifier.setThemeMode(ThemeMode.dark);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,6 +89,11 @@ class ProfilePageState extends State<ProfilePage> {
                 Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               }
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.color_lens),
+            tooltip: 'Change Theme',
+            onPressed: _showThemeDialog,
           ),
         ],
       ),
