@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
+  const RegisterPage({Key? key}) : super(key: key);
+
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
@@ -37,6 +39,31 @@ class _RegisterPageState extends State<RegisterPage> {
         idToken: googleAuth.idToken,
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() { _error = e.message; });
+    } catch (e) {
+      setState(() { _error = e.toString(); });
+    } finally {
+      setState(() { _loading = false; });
+    }
+  }
+
+  Future<void> _registerWithEmail() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final email = emailController.text.trim();
+      final password = passwordController.text.trim();
+      if (email.isEmpty || password.isEmpty) {
+        setState(() { _error = 'Email and password are required.'; _loading = false; });
+        return;
+      }
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
@@ -126,10 +153,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        // For demo: Navigate to dashboard
-                        Navigator.pushReplacementNamed(context, '/dashboard');
-                      },
+                      onPressed: _registerWithEmail,
                       child: Text('REGISTER', style: AppTextStyles.button),
                     ),
                   ),

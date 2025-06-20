@@ -4,15 +4,19 @@ import '../theme/app_text_styles.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'package:pedometer/pedometer.dart';
 import 'dart:async';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DashboardPage extends StatefulWidget {
+  const DashboardPage({Key? key}) : super(key: key);
+
   @override
-  _DashboardPageState createState() => _DashboardPageState();
+  DashboardPageState createState() => DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class DashboardPageState extends State<DashboardPage> {
   int _currentIndex = 0;
-  int _stepCount = 0;
+  int _todaySteps = 0;
   StreamSubscription<StepCount>? _stepCountStream;
 
   // Placeholder values
@@ -25,14 +29,28 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    _initPedometer();
+    _requestActivityRecognitionPermission().then((_) => _initPedometer());
+  }
+
+  Future<void> _requestActivityRecognitionPermission() async {
+    if (await Permission.activityRecognition.isDenied) {
+      await Permission.activityRecognition.request();
+    }
   }
 
   void _initPedometer() {
     _stepCountStream = Pedometer.stepCountStream.listen(
-      (StepCount event) {
+      (StepCount event) async {
+        final now = DateTime.now();
+        final prefs = await SharedPreferences.getInstance();
+        final todayKey = 'baselineSteps_${now.year}_${now.month}_${now.day}';
+        // If no baseline for today, set it
+        if (!prefs.containsKey(todayKey)) {
+          await _saveBaselineSteps(event.steps);
+        }
+        final baseline = prefs.getInt(todayKey) ?? event.steps;
         setState(() {
-          _stepCount = event.steps;
+          _todaySteps = event.steps - baseline;
         });
       },
       onError: (error) {
@@ -104,7 +122,7 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(height: 16),
             Center(
               child: Text(
-                '$_stepCount',
+                '$_todaySteps',
                 style: AppTextStyles.heading.copyWith(fontSize: 48, color: AppColors.text),
               ),
             ),
@@ -123,7 +141,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                       FractionallySizedBox(
-                        widthFactor: (_stepCount / stepGoal).clamp(0.0, 1.0),
+                        widthFactor: (_todaySteps / stepGoal).clamp(0.0, 1.0),
                         child: Container(
                           height: 8,
                           decoration: BoxDecoration(
@@ -181,5 +199,12 @@ class _DashboardPageState extends State<DashboardPage> {
         onTap: _onTabTapped,
       ),
     );
+  }
+
+  Future<void> _saveBaselineSteps(int steps) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now();
+    final todayKey = 'baselineSteps_${today.year}_${today.month}_${today.day}';
+    await prefs.setInt(todayKey, steps);
   }
 } 

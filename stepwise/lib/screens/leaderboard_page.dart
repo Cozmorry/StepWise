@@ -3,6 +3,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 class LeaderboardPage extends StatelessWidget {
+  LeaderboardPage({Key? key}) : super(key: key);
+
   // Placeholder leaderboard data
   final List<Map<String, dynamic>> leaderboard = [
     {'name': 'Michael', 'steps': 22050},

@@ -4,11 +4,13 @@ import '../theme/app_text_styles.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class HealthTipsPage extends StatefulWidget {
+  const HealthTipsPage({Key? key}) : super(key: key);
+
   @override
-  _HealthTipsPageState createState() => _HealthTipsPageState();
+  HealthTipsPageState createState() => HealthTipsPageState();
 }
 
-class _HealthTipsPageState extends State<HealthTipsPage> {
+class HealthTipsPageState extends State<HealthTipsPage> {
   int _currentIndex = 2;
 
   @override

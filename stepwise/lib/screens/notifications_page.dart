@@ -4,11 +4,13 @@ import '../theme/app_text_styles.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class NotificationsPage extends StatefulWidget {
+  const NotificationsPage({Key? key}) : super(key: key);
+
   @override
-  _NotificationsPageState createState() => _NotificationsPageState();
+  NotificationsPageState createState() => NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class NotificationsPageState extends State<NotificationsPage> {
   int _currentIndex = 0;
 
   // Placeholder notifications

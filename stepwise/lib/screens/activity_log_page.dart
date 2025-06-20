@@ -4,11 +4,13 @@ import '../theme/app_text_styles.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class ActivityLogPage extends StatefulWidget {
+  const ActivityLogPage({Key? key}) : super(key: key);
+
   @override
-  _ActivityLogPageState createState() => _ActivityLogPageState();
+  ActivityLogPageState createState() => ActivityLogPageState();
 }
 
-class _ActivityLogPageState extends State<ActivityLogPage> {
+class ActivityLogPageState extends State<ActivityLogPage> {
   int _currentIndex = 1;
 
   // Placeholder data
