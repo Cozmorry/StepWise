@@ -3,7 +3,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 class WelcomePage extends StatelessWidget {
-  const WelcomePage({Key? key}) : super(key: key);
+  final VoidCallback? onFinish;
+  const WelcomePage({Key? key, this.onFinish}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +60,7 @@ class WelcomePage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/register');
-                    },
+                    onPressed: onFinish,
                     child: Text('GET STARTED', style: AppTextStyles.button),
                   ),
                 ),

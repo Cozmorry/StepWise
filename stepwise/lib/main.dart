@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,12 @@ class ThemeModeNotifier extends ChangeNotifier {
 
 class StepWiseApp extends StatelessWidget {
   const StepWiseApp({Key? key}) : super(key: key);
+
+  Future<bool> _shouldShowWelcome() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('hasSeenWelcome') ?? false;
+    return !seen;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +84,8 @@ class StepWiseApp extends StatelessWidget {
             borderSide: BorderSide(color: AppColors.border),
           ),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          hintStyle: TextStyle(color: Colors.grey[700]),
+          labelStyle: TextStyle(color: Colors.grey[800]),
         ),
       ),
       darkTheme: ThemeData(
@@ -114,23 +123,52 @@ class StepWiseApp extends StatelessWidget {
             borderSide: BorderSide(color: AppColors.border),
           ),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          hintStyle: TextStyle(color: Colors.grey[300]),
+          labelStyle: TextStyle(color: Colors.grey[200]),
         ),
       ),
       themeMode: themeNotifier.themeMode,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      home: FutureBuilder<bool>(
+        future: _shouldShowWelcome(),
+        builder: (context, welcomeSnapshot) {
+          if (welcomeSnapshot.connectionState != ConnectionState.done) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          if (snapshot.hasData) {
-            return DashboardPage();
+          if (welcomeSnapshot.data == true) {
+            return WelcomePage(onFinish: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('hasSeenWelcome', true);
+              // After welcome, check auth state
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => DashboardPage()),
+                );
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                );
+              }
+            });
           }
-          return WelcomePage();
+          // Not first launch: check auth state
+          return StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasData) {
+                return DashboardPage();
+              }
+              return const LoginPage();
+            },
+          );
         },
       ),
       routes: {
-        '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/dashboard': (context) => DashboardPage(),
