@@ -204,7 +204,7 @@ class RegisterPageState extends State<RegisterPage> {
                   ],
                   if (_loading)
                     const Center(child: CircularProgressIndicator())
-                  else
+                  else ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -221,6 +221,32 @@ class RegisterPageState extends State<RegisterPage> {
                         child: Text('REGISTER', style: AppTextStyles.button(brightness).copyWith(fontSize: 18)),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: AppColors.getBorder(brightness)),
+                          ),
+                        ),
+                        icon: Image.asset(
+                          'assets/google_logo.png',
+                          height: 24,
+                        ),
+                        label: Text('Sign up with Google',
+                            style: AppTextStyles.button(brightness).copyWith(
+                              color: Colors.black87,
+                              fontSize: 16,
+                            )),
+                        onPressed: _signUpWithGoogle,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -275,22 +301,7 @@ class RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _customGoogleButton(Brightness brightness) {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        side: const BorderSide(color: Color(0xFFDD4B39)),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      icon: Image.asset('assets/google_logo.png', height: 22),
-      label: const Text('Sign up with Google', style: TextStyle(fontWeight: FontWeight.w600)),
-      onPressed: _signInWithGoogle,
-    );
-  }
-
-  Future<void> _signInWithGoogle() async {
+  Future<void> _signUpWithGoogle() async {
     setState(() { _loading = true; _error = null; });
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -305,14 +316,17 @@ class RegisterPageState extends State<RegisterPage> {
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (mounted) {
+        // Always go to onboarding after Google sign-up
         Navigator.pushReplacementNamed(context, '/profile-onboarding');
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() { _error = e.message; });
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(() {
+        _error = 'Failed to sign up with Google. Please try again.';
+      });
     } finally {
-      setState(() { _loading = false; });
+      if (mounted) {
+        setState(() { _loading = false; });
+      }
     }
   }
 } 

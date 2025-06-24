@@ -277,14 +277,21 @@ class ActivityLogPageState extends State<ActivityLogPage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 24, color: AppColors.getPrimary(brightness)),
-            const SizedBox(height: 4),
-            Text(title, style: AppTextStyles.subtitle(brightness)),
-            Text(value, style: AppTextStyles.title(brightness)),
+            Icon(icon, size: 28, color: AppColors.getPrimary(brightness)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: AppTextStyles.subtitle(brightness)),
+                  Text(value, style: AppTextStyles.title(brightness)),
+                ],
+              ),
+            ),
           ],
         ),
       ),

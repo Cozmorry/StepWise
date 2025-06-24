@@ -125,6 +125,72 @@ class LoginPageState extends State<LoginPage> {
                   if (_loading)
                     const Center(child: CircularProgressIndicator())
                   else ...[
+                    // Email field
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Email', style: AppTextStyles.body(brightness)),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: emailController,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: brightness == Brightness.light ? Colors.white : AppColors.getSecondary(brightness),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getBorder(brightness)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getBorder(brightness)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getPrimary(brightness), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                      ),
+                      style: AppTextStyles.body(brightness).copyWith(color: AppColors.getText(brightness)),
+                    ),
+                    const SizedBox(height: 18),
+                    // Password field
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Password', style: AppTextStyles.body(brightness)),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: brightness == Brightness.light ? Colors.white : AppColors.getSecondary(brightness),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getBorder(brightness)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getBorder(brightness)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.getPrimary(brightness), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.getSubtitle(brightness)),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      style: AppTextStyles.body(brightness).copyWith(color: AppColors.getText(brightness)),
+                    ),
+                    const SizedBox(height: 32),
+                    // Login and Google buttons
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -166,21 +232,21 @@ class LoginPageState extends State<LoginPage> {
                         onPressed: _signInWithGoogle,
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("Don't have an account? ", style: AppTextStyles.body(brightness)),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/register');
+                          },
+                          child: Text('Register', style: AppTextStyles.link(brightness)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Don't have an account? ", style: AppTextStyles.body(brightness)),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(context, '/register');
-                        },
-                        child: Text('Register', style: AppTextStyles.link(brightness)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
