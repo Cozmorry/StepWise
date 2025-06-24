@@ -10,6 +10,8 @@ import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notifications_page.dart';
+import 'dart:math';
+import 'package:confetti/confetti.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -31,11 +33,24 @@ class DashboardPageState extends State<DashboardPage> {
   double _distanceInKm = 0.0;
   int _caloriesBurned = 0;
   int _activeStreak = 0;
+  final List<String> _quotes = [
+    'Every step counts! Keep moving.',
+    'Small steps every day lead to big results.',
+    'Stay active, stay healthy.',
+    'You are stronger than you think.',
+    'Consistency is the key to success.',
+    'Your only limit is you.',
+    'Push yourself, because no one else is going to do it for you.',
+  ];
+  int _quoteIndex = 0;
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _initDependencies();
+    _startQuoteRotation();
   }
 
   Future<void> _initDependencies() async {
@@ -136,8 +151,11 @@ class DashboardPageState extends State<DashboardPage> {
       _updateCalculations();
     });
     _saveStepCount(_todaySteps);
-    // Auto-update daily summary notification with real values
-    NotificationHelper.scheduleDailySummary(hour: 21, minute: 0, steps: _todaySteps, distanceKm: _distanceInKm);
+    // Confetti when goal is reached
+    final goal = _userProfile?.dailyStepGoal ?? 10000;
+    if (_todaySteps >= goal) {
+      _confettiController.play();
+    }
   }
 
   void _onStepCountError(error) {
@@ -211,9 +229,23 @@ class DashboardPageState extends State<DashboardPage> {
     _activityBox.put(todayKey, activity);
   }
 
+  void _startQuoteRotation() {
+    void rotate() {
+      Future.delayed(const Duration(seconds: 8), () {
+        if (!mounted) return;
+        setState(() {
+          _quoteIndex = (_quoteIndex + 1) % _quotes.length;
+        });
+        rotate();
+      });
+    }
+    rotate();
+  }
+
   @override
   void dispose() {
     _stepCountStreamSubscription?.cancel();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -246,7 +278,7 @@ class DashboardPageState extends State<DashboardPage> {
             icon: Icon(Icons.send, color: AppColors.getPrimary(brightness)),
             onPressed: () async {
               // Manual trigger for daily summary notification
-              await NotificationHelper.scheduleDailySummary(hour: DateTime.now().hour, minute: DateTime.now().minute, steps: _todaySteps, distanceKm: _distanceInKm);
+              await NotificationHelper.showSummary(steps: _todaySteps, distanceKm: _distanceInKm);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Daily summary notification sent!')),
@@ -262,116 +294,185 @@ class DashboardPageState extends State<DashboardPage> {
           padding: const EdgeInsets.all(18.0),
           child: _userProfile == null
               ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Welcome back, ${_userProfile!.name}!', style: AppTextStyles.heading(brightness)),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 200,
-                              height: 200,
-                              child: CircularProgressIndicator(
-                                value: progress,
-                                strokeWidth: 12,
-                                backgroundColor: AppColors.getSecondary(brightness),
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(brightness)),
-                              ),
-                            ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '$_todaySteps',
-                                  style: AppTextStyles.heading(brightness).copyWith(fontSize: 48),
-                                ),
-                                Text(
-                                  '/$goal Steps',
-                                  style: AppTextStyles.body(brightness),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await _initDependencies();
+                    setState(() {});
+                  },
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
+                        // Personalized greeting
+                        Text(
+                          _getGreeting() + ', ${_userProfile!.name}!',
+                          style: AppTextStyles.heading(brightness),
+                        ),
+                        const SizedBox(height: 8),
+                        // Rotating motivational quote
+                        Center(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 600),
+                            child: Text(
+                              _quotes[_quoteIndex],
+                              key: ValueKey(_quoteIndex),
+                              style: AppTextStyles.subtitle(brightness).copyWith(fontStyle: FontStyle.italic),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Animated step progress ring with confetti
+                        Center(
                           child: Stack(
+                            alignment: Alignment.center,
                             children: [
-                              Container(
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: AppColors.getSecondary(brightness),
-                                  borderRadius: BorderRadius.circular(8),
+                              SizedBox(
+                                width: 200,
+                                height: 200,
+                                child: CircularProgressIndicator(
+                                  value: progress,
+                                  strokeWidth: 12,
+                                  backgroundColor: AppColors.getSecondary(brightness),
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(brightness)),
                                 ),
                               ),
-                              FractionallySizedBox(
-                                widthFactor: progress,
-                                child: Container(
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.getPrimary(brightness),
-                                    borderRadius: BorderRadius.circular(8),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '$_todaySteps',
+                                    style: AppTextStyles.heading(brightness).copyWith(fontSize: 48),
+                                  ),
+                                  Text(
+                                    '/$goal Steps',
+                                    style: AppTextStyles.body(brightness),
+                                  ),
+                                ],
+                              ),
+                              // Confetti
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: ConfettiWidget(
+                                    confettiController: _confettiController,
+                                    blastDirectionality: BlastDirectionality.explosive,
+                                    shouldLoop: false,
+                                    emissionFrequency: 0.12,
+                                    numberOfParticles: 20,
+                                    maxBlastForce: 20,
+                                    minBlastForce: 8,
+                                    gravity: 0.2,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('0', style: AppTextStyles.subtitle(brightness)),
-                        Text('$goal', style: AppTextStyles.subtitle(brightness)),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildStatCard('Calories', '${_caloriesBurned.toStringAsFixed(0)} kcal', Icons.local_fire_department, brightness),
-                        _buildStatCard('Distance', '${_distanceInKm.toStringAsFixed(2)} km', Icons.map_outlined, brightness),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    if (_pedometerError != null)
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              _pedometerError!,
-                              style: AppTextStyles.body(brightness).copyWith(color: Colors.red),
-                              textAlign: TextAlign.center,
+                        const SizedBox(height: 16),
+                        // Streak badge
+                        if (_activeStreak > 1)
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.local_fire_department, color: Colors.orange, size: 28),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '$_activeStreak-day streak!',
+                                    style: AppTextStyles.body(brightness).copyWith(fontWeight: FontWeight.w600, color: Colors.orange),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: () => openAppSettings(),
-                              child: const Text('Open Settings'),
+                          ),
+                        const SizedBox(height: 16),
+                        // Quick actions
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _logActivity,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Log Activity'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.getPrimary(brightness),
+                                  foregroundColor: AppColors.buttonText,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/activity-log');
+                                },
+                                icon: const Icon(Icons.history),
+                                label: const Text('View History'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.getSecondary(brightness),
+                                  foregroundColor: AppColors.getPrimary(brightness),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _showSetGoalDialog,
+                                icon: const Icon(Icons.flag, size: 28),
+                                label: const Text('Set Goal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.getPrimary(brightness),
+                                  foregroundColor: AppColors.buttonText,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(color: AppColors.getPrimary(brightness), width: 2),
+                                  ),
+                                  elevation: 4,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    if (_activeStreak > 1)
-                      Center(
-                        child: Text(
-                          'Great Consistency! You have a $_activeStreak-day active streak!',
-                          style: AppTextStyles.body(brightness).copyWith(fontWeight: FontWeight.w600),
-                          textAlign: TextAlign.center,
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatCard('Calories', '${_caloriesBurned.toStringAsFixed(0)} kcal', Icons.local_fire_department, brightness),
+                            _buildStatCard('Distance', '${_distanceInKm.toStringAsFixed(2)} km', Icons.map_outlined, brightness),
+                          ],
                         ),
-                      ),
-                  ],
+                        const SizedBox(height: 24),
+                        if (_pedometerError != null)
+                          Center(
+                            child: Column(
+                              children: [
+                                Text(
+                                  _pedometerError!,
+                                  style: AppTextStyles.body(brightness).copyWith(color: Colors.red),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () => openAppSettings(),
+                                  child: const Text('Open Settings'),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
         ),
       ),
@@ -397,6 +498,156 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  void _logActivity() {
+    final dateController = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
+    final stepsController = TextEditingController();
+    final distanceController = TextEditingController();
+    final caloriesController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Log Activity'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: dateController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Date',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.calendar_today),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          selectedDate = picked;
+                          dateController.text = picked.toIso8601String().substring(0, 10);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: stepsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Steps'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: distanceController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Distance (km)'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: caloriesController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Calories'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final steps = int.tryParse(stepsController.text) ?? 0;
+                final distance = double.tryParse(distanceController.text) ?? 0.0;
+                final calories = int.tryParse(caloriesController.text) ?? 0;
+                if (steps > 0) {
+                  final key = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                  final activity = ActivityRecord(
+                    date: selectedDate,
+                    steps: steps,
+                    distance: distance,
+                    calories: calories,
+                  );
+                  await _activityBox.put(key, activity);
+                  if (key == _getTodayKey()) {
+                    setState(() {
+                      _steps = steps;
+                      _todaySteps = steps - _baselineSteps;
+                      _updateCalculations();
+                    });
+                  }
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Activity logged!')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSetGoalDialog() {
+    final controller = TextEditingController(text: (_userProfile?.dailyStepGoal ?? 10000).toString());
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Set Daily Step Goal'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Steps'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newGoal = int.tryParse(controller.text);
+                if (newGoal != null && newGoal > 0) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final box = Hive.box<UserProfile>('user_profiles');
+                    final profile = box.get(user.uid);
+                    if (profile != null) {
+                      profile.dailyStepGoal = newGoal;
+                      await box.put(user.uid, profile);
+                      setState(() {
+                        _userProfile = profile;
+                      });
+                    }
+                  }
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 } 

@@ -7,14 +7,20 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:hive/hive.dart';
 
 enum NotificationType { achievement, tip, general }
 
-class NotificationItem {
+class NotificationItem extends HiveObject {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String text;
+  @HiveField(2)
   final DateTime timestamp;
+  @HiveField(3)
   final NotificationType type;
+  @HiveField(4)
   bool isRead;
 
   NotificationItem({
@@ -26,6 +32,31 @@ class NotificationItem {
   });
 }
 
+class NotificationItemAdapter extends TypeAdapter<NotificationItem> {
+  @override
+  final int typeId = 3;
+
+  @override
+  NotificationItem read(BinaryReader reader) {
+    return NotificationItem(
+      id: reader.readString(),
+      text: reader.readString(),
+      timestamp: DateTime.parse(reader.readString()),
+      type: NotificationType.values[reader.readInt()],
+      isRead: reader.readBool(),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, NotificationItem obj) {
+    writer.writeString(obj.id);
+    writer.writeString(obj.text);
+    writer.writeString(obj.timestamp.toIso8601String());
+    writer.writeInt(obj.type.index);
+    writer.writeBool(obj.isRead);
+  }
+}
+
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
 
@@ -35,17 +66,12 @@ class NotificationsPage extends StatefulWidget {
 
 class NotificationsPageState extends State<NotificationsPage> {
   int _currentIndex = 0;
-  final List<NotificationItem> _notifications = [
-    NotificationItem(id: '1', text: 'Congratulations! You hit your 10,000-step goal yesterday!', timestamp: DateTime.now().subtract(const Duration(hours: 18)), type: NotificationType.achievement),
-    NotificationItem(id: '2', text: 'You have a new health tip: "The Importance of a Cool-Down Routine".', timestamp: DateTime.now().subtract(const Duration(days: 1)), type: NotificationType.tip, isRead: true),
-    NotificationItem(id: '3', text: 'Your weekly summary is ready. You walked an average of 8,500 steps last week!', timestamp: DateTime.now().subtract(const Duration(days: 2)), isRead: true),
-    NotificationItem(id: '4', text: 'You achieved a 3-day streak! Keep the momentum going.', timestamp: DateTime.now().subtract(const Duration(days: 3)), type: NotificationType.achievement),
-    NotificationItem(id: '5', text: 'Remember to sync your activity data before the end of the day.', timestamp: DateTime.now().subtract(const Duration(hours: 2)), isRead: false)
-  ];
+  late Box<NotificationItem> _notificationBox;
 
   @override
   void initState() {
     super.initState();
+    _notificationBox = Hive.box<NotificationItem>('notifications');
     _requestNotificationPermission();
   }
 
@@ -69,21 +95,31 @@ class NotificationsPageState extends State<NotificationsPage> {
   }
 
   void _markAsRead(String id) {
-    setState(() {
-      _notifications.firstWhere((n) => n.id == id).isRead = true;
-    });
+    final notification = _notificationBox.values.firstWhere(
+      (n) => n.id == id,
+      orElse: () => NotificationItem(id: '', text: '', timestamp: DateTime.now(), type: NotificationType.general),
+    );
+    if (notification.id.isNotEmpty) {
+      notification.isRead = true;
+      notification.save();
+      setState(() {});
+    }
   }
 
   void _deleteNotification(String id) {
-    setState(() {
-      _notifications.removeWhere((n) => n.id == id);
-    });
+    final notification = _notificationBox.values.firstWhere(
+      (n) => n.id == id,
+      orElse: () => NotificationItem(id: '', text: '', timestamp: DateTime.now(), type: NotificationType.general),
+    );
+    if (notification.id.isNotEmpty) {
+      notification.delete();
+      setState(() {});
+    }
   }
 
   void _clearAll() {
-    setState(() {
-      _notifications.clear();
-    });
+    _notificationBox.clear();
+    setState(() {});
   }
 
   String _formatTimestamp(DateTime timestamp) {
@@ -116,6 +152,7 @@ class NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
+    final notifications = _notificationBox.values.toList().reversed.toList();
     return Scaffold(
       backgroundColor: AppColors.getBackground(brightness),
       appBar: AppBar(
@@ -124,7 +161,7 @@ class NotificationsPageState extends State<NotificationsPage> {
         title: Text('Notifications', style: AppTextStyles.title(brightness)),
         centerTitle: true,
         actions: [
-          if (_notifications.isNotEmpty)
+          if (notifications.isNotEmpty)
             TextButton(
               onPressed: _clearAll,
               child: Text(
@@ -134,13 +171,13 @@ class NotificationsPageState extends State<NotificationsPage> {
             ),
         ],
       ),
-      body: _notifications.isEmpty
+      body: notifications.isEmpty
           ? _buildEmptyState(brightness)
           : ListView.builder(
               padding: const EdgeInsets.all(16.0),
-              itemCount: _notifications.length,
+              itemCount: notifications.length,
               itemBuilder: (context, index) {
-                final notification = _notifications[index];
+                final notification = notifications[index];
                 return _buildSlidableNotification(notification, brightness);
               },
             ),
@@ -264,18 +301,15 @@ class NotificationHelper {
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  static Future<void> scheduleDailyReminder({
-    int hour = 20,
-    int minute = 0,
+  static Future<void> showReminder({
     String title = 'StepWise Reminder',
     String body = 'Don\'t forget to check your daily step progress!',
     int id = 0,
   }) async {
-    await _notificationsPlugin.zonedSchedule(
+    await _notificationsPlugin.show(
       id,
       title,
       body,
-      _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'reminder_channel',
@@ -285,24 +319,18 @@ class NotificationHelper {
           priority: Priority.high,
         ),
       ),
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  static Future<void> scheduleDailySummary({
-    int hour = 21,
-    int minute = 0,
+  static Future<void> showSummary({
     required int steps,
     required double distanceKm,
     int id = 1,
   }) async {
-    await _notificationsPlugin.zonedSchedule(
+    await _notificationsPlugin.show(
       id,
       'StepWise Daily Summary',
       'You walked $steps steps today (${distanceKm.toStringAsFixed(2)} km)!',
-      _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'summary_channel',
@@ -312,19 +340,7 @@ class NotificationHelper {
           priority: Priority.high,
         ),
       ),
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
-  }
-
-  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    return scheduledDate;
   }
 
   static Future<void> cancelAll() async {

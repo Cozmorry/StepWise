@@ -15,19 +15,21 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/activity_record.dart';
 import 'models/user_profile.dart';
 import 'screens/notifications_page.dart';
+import 'screens/activity_log_page.dart';
+import 'screens/notifications_page.dart'; // Import NotificationItemAdapter
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   Hive.registerAdapter(ActivityRecordAdapter());
   Hive.registerAdapter(UserProfileAdapter());
+  Hive.registerAdapter(NotificationItemAdapter()); // Register NotificationItem adapter
   await Hive.openBox<ActivityRecord>('activity_log');
   await Hive.openBox<UserProfile>('user_profiles');
+  await Hive.openBox<NotificationItem>('notifications'); // Open notifications box
   await Firebase.initializeApp();
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
-  await NotificationHelper.scheduleDailyReminder(hour: 20, minute: 0);
-  await NotificationHelper.scheduleDailySummary(hour: 21, minute: 0, steps: 0, distanceKm: 0.0);
   runApp(ChangeNotifierProvider(
     create: (_) => ThemeModeNotifier(prefs),
     child: const StepWiseApp(),
@@ -111,6 +113,7 @@ class StepWiseApp extends StatelessWidget {
         '/dashboard': (context) => const MainScreen(),
         '/notifications': (context) => const NotificationsPage(),
         '/profile-onboarding': (context) => const ProfileOnboardingPage(),
+        '/activity-log': (context) => const ActivityLogPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/edit-profile') {
