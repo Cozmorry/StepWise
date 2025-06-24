@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -8,29 +9,31 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: Colors.purple,
-      unselectedItemColor: Colors.black54,
-      backgroundColor: const Color(0xFFE5D6DF),
+      selectedItemColor: AppColors.getPrimary(brightness),
+      unselectedItemColor: AppColors.getText(brightness).withAlpha(153), // 0.6 opacity = 153 alpha
+      backgroundColor: AppColors.getBackground(brightness),
+      elevation: 8,
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),
-          label: '',
+          label: 'Dashboard',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today),
-          label: '',
+          label: 'Activity',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.lightbulb_outline),
-          label: '',
+          label: 'Tips',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),
-          label: '',
+          label: 'Profile',
         ),
       ],
     );

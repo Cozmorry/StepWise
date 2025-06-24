@@ -3,39 +3,64 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/welcome_page.dart';
 import 'screens/login_page.dart';
 import 'screens/register_page.dart';
-import 'screens/dashboard_page.dart';
-import 'screens/activity_log_page.dart';
-import 'screens/health_tips_page.dart';
-import 'screens/profile_page.dart';
 import 'screens/notifications_page.dart';
-import 'screens/leaderboard_page.dart';
+import 'screens/main_screen.dart';
+import 'screens/profile_onboarding_page.dart';
+import 'screens/edit_profile_page.dart';
+import 'theme/app_theme.dart';
 import 'package:provider/provider.dart';
-import 'theme/app_colors.dart';
-import 'theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/activity_record.dart';
+import 'models/user_profile.dart';
+import 'screens/notifications_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(ActivityRecordAdapter());
+  Hive.registerAdapter(UserProfileAdapter());
+  await Hive.openBox<ActivityRecord>('activity_log');
+  await Hive.openBox<UserProfile>('user_profiles');
   await Firebase.initializeApp();
+  final prefs = await SharedPreferences.getInstance();
+  await NotificationHelper.initialize();
+  await NotificationHelper.scheduleDailyReminder(hour: 20, minute: 0);
+  await NotificationHelper.scheduleDailySummary(hour: 21, minute: 0, steps: 0, distanceKm: 0.0);
   runApp(ChangeNotifierProvider(
-    create: (_) => ThemeModeNotifier(),
+    create: (_) => ThemeModeNotifier(prefs),
     child: const StepWiseApp(),
   ));
 }
 
 class ThemeModeNotifier extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  final SharedPreferences _prefs;
+  late ThemeMode _themeMode;
+
+  ThemeModeNotifier(this._prefs) {
+    _loadTheme();
+  }
+
   ThemeMode get themeMode => _themeMode;
 
-  void setThemeMode(ThemeMode mode) {
+  void _loadTheme() {
+    final themeString = _prefs.getString('themeMode') ?? 'system';
+    _themeMode = ThemeMode.values.firstWhere(
+        (e) => e.name == themeString,
+        orElse: () => ThemeMode.system);
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return;
     _themeMode = mode;
     notifyListeners();
+    await _prefs.setString('themeMode', mode.name);
   }
 }
 
 class StepWiseApp extends StatelessWidget {
-  const StepWiseApp({Key? key}) : super(key: key);
+  const StepWiseApp({super.key});
 
   Future<bool> _shouldShowWelcome() async {
     final prefs = await SharedPreferences.getInstance();
@@ -49,84 +74,8 @@ class StepWiseApp extends StatelessWidget {
     return MaterialApp(
       title: 'StepWise',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: AppColors.background,
-        appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.background,
-          foregroundColor: AppColors.primary,
-          elevation: 0,
-          titleTextStyle: AppTextStyles.heading,
-          iconTheme: IconThemeData(color: AppColors.primary),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.buttonText,
-            textStyle: AppTextStyles.button,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: BorderSide(color: AppColors.primary),
-            textStyle: AppTextStyles.button,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          hintStyle: TextStyle(color: Colors.grey[700]),
-          labelStyle: TextStyle(color: Colors.grey[800]),
-        ),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.black,
-          foregroundColor: AppColors.primary,
-          elevation: 0,
-          titleTextStyle: AppTextStyles.heading.copyWith(color: Colors.white),
-          iconTheme: IconThemeData(color: AppColors.primary),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.buttonText,
-            textStyle: AppTextStyles.button,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: BorderSide(color: AppColors.primary),
-            textStyle: AppTextStyles.button,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey[900],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          hintStyle: TextStyle(color: Colors.grey[300]),
-          labelStyle: TextStyle(color: Colors.grey[200]),
-        ),
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       themeMode: themeNotifier.themeMode,
       home: FutureBuilder<bool>(
         future: _shouldShowWelcome(),
@@ -138,19 +87,7 @@ class StepWiseApp extends StatelessWidget {
             return WelcomePage(onFinish: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('hasSeenWelcome', true);
-              // After welcome, check auth state
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => DashboardPage()),
-                );
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                );
-              }
+              Navigator.pushReplacementNamed(context, '/register');
             });
           }
           // Not first launch: check auth state
@@ -161,7 +98,7 @@ class StepWiseApp extends StatelessWidget {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
               if (snapshot.hasData) {
-                return DashboardPage();
+                return const MainScreen();
               }
               return const LoginPage();
             },
@@ -171,12 +108,20 @@ class StepWiseApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/dashboard': (context) => DashboardPage(),
-        '/activity_log': (context) => const ActivityLogPage(),
-        '/health_tips': (context) => const HealthTipsPage(),
-        '/profile': (context) => const ProfilePage(),
+        '/dashboard': (context) => const MainScreen(),
         '/notifications': (context) => const NotificationsPage(),
-        '/leaderboard': (context) => LeaderboardPage(),
+        '/profile-onboarding': (context) => const ProfileOnboardingPage(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/edit-profile') {
+          final userProfile = settings.arguments as UserProfile;
+          return MaterialPageRoute(
+            builder: (context) {
+              return EditProfilePage(userProfile: userProfile);
+            },
+          );
+        }
+        return null;
       },
     );
   }

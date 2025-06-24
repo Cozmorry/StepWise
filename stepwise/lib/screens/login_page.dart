@@ -1,175 +1,189 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'package:sign_in_button/sign_in_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  LoginPageState createState() => LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool _loading = false;
   String? _error;
+  bool _loading = false;
+  bool _obscurePassword = true;
+
+  Future<void> _signInWithEmail() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+      );
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _error = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'An error occurred. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _signInWithGoogle() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        setState(() { _loading = false; });
-        return; // User cancelled
+        setState(() {
+          _loading = false;
+        });
+        return;
       }
+
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
+
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() { _error = e.message; });
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      setState(() {
+        _error = 'Failed to sign in with Google. Please try again.';
+      });
     } finally {
-      setState(() { _loading = false; });
-    }
-  }
-
-  Future<void> _signInWithEmail() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final email = emailController.text.trim();
-      final password = passwordController.text.trim();
-      if (email.isEmpty || password.isEmpty) {
-        setState(() { _error = 'Email and password are required.'; _loading = false; });
-        return;
-      }
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        setState(() {
+          _loading = false;
+        });
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() { _error = e.message; });
-    } catch (e) {
-      setState(() { _error = e.toString(); });
-    } finally {
-      setState(() { _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(brightness),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 32),
-              Row(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.getPrimary(brightness).withOpacity(0.08), AppColors.getSecondary(brightness).withOpacity(0.12)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.directions_walk, size: 32, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text('STEPWISE', style: AppTextStyles.heading),
-                ],
-              ),
-              const SizedBox(height: 48),
-              Text('Email', style: AppTextStyles.body),
-              const SizedBox(height: 6),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.border),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text('Password', style: AppTextStyles.body),
-              const SizedBox(height: 6),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppColors.border),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 32),
-              if (_error != null) ...[
-                Center(child: Text(_error!, style: const TextStyle(color: Colors.red))),
-                const SizedBox(height: 12),
-              ],
-              if (_loading)
-                const Center(child: CircularProgressIndicator())
-              else ...[
-                Center(
-                  child: SizedBox(
-                    width: 180,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.buttonText,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  const SizedBox(height: 32),
+                  Icon(Icons.directions_walk, size: 56, color: AppColors.getPrimary(brightness)),
+                  const SizedBox(height: 16),
+                  Text('STEPWISE', style: AppTextStyles.heading(brightness).copyWith(fontSize: 32, letterSpacing: 2)),
+                  const SizedBox(height: 32),
+                  if (_error != null) ...[
+                    Center(
+                      child: Text(
+                        _error!,
+                        style: AppTextStyles.body(brightness).copyWith(color: Colors.red),
+                        textAlign: TextAlign.center,
                       ),
-                      onPressed: _signInWithEmail,
-                      child: Text('LOGIN', style: AppTextStyles.button),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: SizedBox(
-                    width: 180,
-                    child: SignInButton(
-                      Buttons.google,
-                      onPressed: _signInWithGoogle,
+                    const SizedBox(height: 12),
+                  ],
+                  if (_loading)
+                    const Center(child: CircularProgressIndicator())
+                  else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.getPrimary(brightness),
+                          foregroundColor: AppColors.buttonText,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 3,
+                        ),
+                        onPressed: _signInWithEmail,
+                        child: Text('LOGIN', style: AppTextStyles.button(brightness).copyWith(fontSize: 18)),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Don't have an account? ", style: AppTextStyles.body),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
-                      child: Text('Register', style: AppTextStyles.link),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: AppColors.getBorder(brightness)),
+                          ),
+                        ),
+                        icon: Image.asset(
+                          'assets/google_logo.png',
+                          height: 24,
+                        ),
+                        label: Text('Sign in with Google',
+                            style: AppTextStyles.button(brightness).copyWith(
+                              color: Colors.black87,
+                              fontSize: 16,
+                            )),
+                        onPressed: _signInWithGoogle,
+                      ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Don't have an account? ", style: AppTextStyles.body(brightness)),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/register');
+                        },
+                        child: Text('Register', style: AppTextStyles.link(brightness)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
