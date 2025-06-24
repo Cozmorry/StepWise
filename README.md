@@ -33,16 +33,16 @@ StepWise is a step counter application built with Flutter. It aims to provide us
 ## Screenshots
 
 ### Dashboard
-![Dashboard](assets/screenshots/dashboard.png)
+![Dashboard](stepwise/assets/screenshots/dashboard.png)
 
 ### Activity Log
-![Activity Log](assets/screenshots/activity_log.png)
+![Activity Log](stepwise/assets/screenshots/activity_log.png)
 
 ### Health & Wellness Tips
-![Health & Wellness Tips](assets/screenshots/health_tips.png)
+![Health & Wellness Tips](stepwise/assets/screenshots/health_tips.png)
 
 ### Profile Page
-![Profile Page](assets/screenshots/profile.png)
+![Profile Page](stepwise/assets/screenshots/profile.png)
 
 ## Tech Stack
 
