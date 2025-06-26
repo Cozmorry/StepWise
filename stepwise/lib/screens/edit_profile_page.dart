@@ -6,6 +6,8 @@ import 'package:path/path.dart' as path;
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserProfile userProfile;
@@ -104,13 +106,13 @@ class EditProfilePageState extends State<EditProfilePage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
-
+    print('Starting profile save');
     try {
+      print('Saving profile to Hive and Firestore');
       widget.userProfile.update(
         name: nameController.text,
         age: int.parse(ageController.text),
@@ -120,9 +122,20 @@ class EditProfilePageState extends State<EditProfilePage> {
         dailyStepGoal: int.parse(goalController.text),
         profilePhotoUrl: _profileImagePath,
       );
-
       await widget.userProfile.save();
-
+      await FirebaseFirestore.instance.collection('users').doc(widget.userProfile.userId).set({
+        'userId': widget.userProfile.userId,
+        'name': widget.userProfile.name,
+        'age': widget.userProfile.age,
+        'gender': widget.userProfile.gender,
+        'weight': widget.userProfile.weight,
+        'height': widget.userProfile.height,
+        'dailyStepGoal': widget.userProfile.dailyStepGoal,
+        'profilePhotoUrl': null,
+        'createdAt': widget.userProfile.createdAt,
+        'updatedAt': widget.userProfile.updatedAt,
+      });
+      print('Profile saved successfully');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -133,11 +146,13 @@ class EditProfilePageState extends State<EditProfilePage> {
         Navigator.pop(context);
       }
     } catch (e) {
+      print('Profile save error: $e');
       setState(() {
-        _errorMessage = 'Failed to save profile: ${e.toString()}';
+        _loading = false;
+        _errorMessage = 'Failed to save profile. Please try again.';
       });
     } finally {
-      if (mounted) {
+      if (mounted && _loading) {
         setState(() {
           _loading = false;
         });

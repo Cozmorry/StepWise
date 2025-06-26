@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'notifications_page.dart';
 import 'dart:math';
 import 'package:confetti/confetti.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -44,6 +46,7 @@ class DashboardPageState extends State<DashboardPage> {
   ];
   int _quoteIndex = 0;
   late ConfettiController _confettiController;
+  int? _pedometerBaseline;
 
   @override
   void initState() {
@@ -66,7 +69,15 @@ class DashboardPageState extends State<DashboardPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final box = Hive.box<UserProfile>('user_profiles');
-      final userProfile = box.get(user.uid);
+      var userProfile = box.get(user.uid);
+      if (userProfile == null) {
+        // Try to fetch from Firestore
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          userProfile = UserProfile.fromMap(doc.data()!);
+          await box.put(user.uid, userProfile);
+        }
+      }
       if (mounted) {
         setState(() {
           _userProfile = userProfile;
@@ -134,8 +145,14 @@ class DashboardPageState extends State<DashboardPage> {
     if (todayRecord != null) {
       if (mounted) {
         setState(() {
-          _steps = todayRecord.steps;
-          _todaySteps = (_steps - _baselineSteps).clamp(0, 1000000);
+          _steps = (todayRecord.manualSteps ?? 0) + (todayRecord.pedometerSteps ?? 0);
+          _todaySteps = _steps;
+          // Calculate distance and calories from latest steps
+          if (_userProfile != null) {
+            final strideLength = _userProfile!.height * 0.415 / 100; // in meters
+            _distanceInKm = (_steps * strideLength) / 1000;
+            _caloriesBurned = (_steps * _userProfile!.weight * 0.0005).round();
+          }
           _updateCalculations();
         });
       }
@@ -144,13 +161,49 @@ class DashboardPageState extends State<DashboardPage> {
 
   void _onStepCount(StepCount event) {
     if (!mounted) return;
-    _checkAndUpdateBaseline(event.steps);
+    final todayKey = _getTodayKey();
+    final todayRecord = _activityBox.get(todayKey);
+    if (_pedometerBaseline == null) {
+      _pedometerBaseline = event.steps;
+    }
+    int pedometerSteps = event.steps - (_pedometerBaseline ?? event.steps);
+    if (pedometerSteps < 0) pedometerSteps = 0;
+    int manualSteps = todayRecord?.manualSteps ?? 0;
+    int totalSteps = pedometerSteps + manualSteps;
+    final activity = todayRecord ?? ActivityRecord(
+      date: DateTime.now(),
+      steps: 0,
+      distance: 0,
+      calories: 0,
+    );
+    activity.steps = totalSteps;
+    activity.manualSteps = manualSteps;
+    activity.pedometerSteps = pedometerSteps;
+    // Calculate distance and calories from latest steps
+    double distance = 0.0;
+    int calories = 0;
+    if (_userProfile != null) {
+      final strideLength = _userProfile!.height * 0.415 / 100; // in meters
+      distance = (totalSteps * strideLength) / 1000;
+      calories = (totalSteps * _userProfile!.weight * 0.0005).round();
+    }
+    activity.distance = distance;
+    activity.calories = calories;
+    _activityBox.put(todayKey, activity);
     setState(() {
-      _steps = event.steps;
-      _todaySteps = (_steps - _baselineSteps).clamp(0, 1000000);
+      _steps = totalSteps;
+      _todaySteps = totalSteps;
+      _distanceInKm = distance;
+      _caloriesBurned = calories;
       _updateCalculations();
     });
-    _saveStepCount(_todaySteps);
+    // Update Firestore steps for leaderboard
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'steps': totalSteps,
+      }, SetOptions(merge: true));
+    }
     // Confetti when goal is reached
     final goal = _userProfile?.dailyStepGoal ?? 10000;
     if (_todaySteps >= goal) {
@@ -170,8 +223,7 @@ class DashboardPageState extends State<DashboardPage> {
     if (_userProfile == null) return;
     final strideLength = _userProfile!.height * 0.415 / 100; // in meters
     _distanceInKm = (_todaySteps * strideLength) / 1000;
-    const met = 3.5; // MET for walking
-    _caloriesBurned = ((met * 3.5 * _userProfile!.weight) / 200 * (_todaySteps / 2000 * 60) / 100).round();
+    _caloriesBurned = (_todaySteps * _userProfile!.weight * 0.0005).round();
   }
   
   void _calculateActiveStreak() {
@@ -227,6 +279,14 @@ class DashboardPageState extends State<DashboardPage> {
     activity.distance = _distanceInKm;
     activity.calories = _caloriesBurned;
     _activityBox.put(todayKey, activity);
+
+    // Update Firestore steps for leaderboard
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'steps': steps,
+      }, SetOptions(merge: true));
+    }
   }
 
   void _startQuoteRotation() {
@@ -262,7 +322,10 @@ class DashboardPageState extends State<DashboardPage> {
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          child: Icon(Icons.directions_walk, color: AppColors.getPrimary(brightness), size: 32),
+          child: Transform.rotate(
+            angle: -1.5708, // -90 degrees in radians
+            child: FaIcon(FontAwesomeIcons.shoePrints, color: AppColors.getPrimary(brightness), size: 32),
+          ),
         ),
         title: Text('Dashboard', style: AppTextStyles.title(brightness)),
         centerTitle: true,
@@ -392,8 +455,45 @@ class DashboardPageState extends State<DashboardPage> {
                               ),
                             ),
                           ),
-                        const SizedBox(height: 16),
-                        // Quick actions
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatCard('Calories', '${_caloriesBurned.toStringAsFixed(0)} kcal', Icons.local_fire_department, brightness),
+                            _buildStatCard('Distance', '${_distanceInKm.toStringAsFixed(2)} km', Icons.map_outlined, brightness),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/leaderboard');
+                          },
+                          child: Card(
+                            color: AppColors.getSecondary(brightness),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.leaderboard, color: AppColors.getPrimary(brightness), size: 36),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Leaderboard', style: AppTextStyles.subtitle(brightness)),
+                                        Text('See top steppers!', style: AppTextStyles.body(brightness)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios, color: AppColors.getPrimary(brightness), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -445,14 +545,6 @@ class DashboardPageState extends State<DashboardPage> {
                           ],
                         ),
                         const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildStatCard('Calories', '${_caloriesBurned.toStringAsFixed(0)} kcal', Icons.local_fire_department, brightness),
-                            _buildStatCard('Distance', '${_distanceInKm.toStringAsFixed(2)} km', Icons.map_outlined, brightness),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
                         if (_pedometerError != null)
                           Center(
                             child: Column(
@@ -490,7 +582,12 @@ class DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: AppColors.getPrimary(brightness), size: 28),
+              (icon == Icons.directions_walk || icon == Icons.directions_run)
+                  ? Transform.rotate(
+                      angle: -1.5708, // -90 degrees in radians
+                      child: FaIcon(FontAwesomeIcons.shoePrints, color: AppColors.getPrimary(brightness), size: 28),
+                    )
+                  : Icon(icon, color: AppColors.getPrimary(brightness), size: 28),
               const SizedBox(height: 8),
               Text(title, style: AppTextStyles.subtitle(brightness)),
               Text(value, style: AppTextStyles.title(brightness)),
@@ -511,8 +608,6 @@ class DashboardPageState extends State<DashboardPage> {
   void _logActivity() {
     final dateController = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
     final stepsController = TextEditingController();
-    final distanceController = TextEditingController();
-    final caloriesController = TextEditingController();
     DateTime selectedDate = DateTime.now();
 
     showDialog(
@@ -552,18 +647,6 @@ class DashboardPageState extends State<DashboardPage> {
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Steps'),
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: distanceController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Distance (km)'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: caloriesController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Calories'),
-                ),
               ],
             ),
           ),
@@ -575,23 +658,47 @@ class DashboardPageState extends State<DashboardPage> {
             ElevatedButton(
               onPressed: () async {
                 final steps = int.tryParse(stepsController.text) ?? 0;
-                final distance = double.tryParse(distanceController.text) ?? 0.0;
-                final calories = int.tryParse(caloriesController.text) ?? 0;
                 if (steps > 0) {
                   final key = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-                  final activity = ActivityRecord(
+                  final existing = _activityBox.get(key);
+                  int manualSteps = steps + (existing?.manualSteps ?? 0);
+                  int pedometerSteps = existing?.pedometerSteps ?? 0;
+                  int totalSteps = manualSteps + pedometerSteps;
+                  // Calculate distance and calories from latest steps
+                  double distance = 0.0;
+                  int calories = 0;
+                  if (_userProfile != null) {
+                    final strideLength = _userProfile!.height * 0.415 / 100; // in meters
+                    distance = (totalSteps * strideLength) / 1000;
+                    calories = (totalSteps * _userProfile!.weight * 0.0005).round();
+                  }
+                  final activity = existing ?? ActivityRecord(
                     date: selectedDate,
-                    steps: steps,
-                    distance: distance,
-                    calories: calories,
+                    steps: 0,
+                    distance: 0,
+                    calories: 0,
                   );
+                  activity.manualSteps = manualSteps;
+                  activity.pedometerSteps = pedometerSteps;
+                  activity.steps = totalSteps;
+                  activity.distance = distance;
+                  activity.calories = calories;
                   await _activityBox.put(key, activity);
                   if (key == _getTodayKey()) {
                     setState(() {
-                      _steps = steps;
-                      _todaySteps = steps - _baselineSteps;
+                      _steps = totalSteps;
+                      _todaySteps = totalSteps;
+                      _distanceInKm = distance;
+                      _caloriesBurned = calories;
                       _updateCalculations();
                     });
+                    // Update Firestore steps for leaderboard if logging for today
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                        'steps': totalSteps,
+                      }, SetOptions(merge: true));
+                    }
                   }
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(

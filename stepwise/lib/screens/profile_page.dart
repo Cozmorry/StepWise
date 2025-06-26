@@ -7,6 +7,7 @@ import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -23,6 +24,22 @@ class ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _profileBox = Hive.box<UserProfile>('user_profiles');
+    _loadUserProfileIfNeeded();
+  }
+
+  Future<void> _loadUserProfileIfNeeded() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      var userProfile = _profileBox.get(user.uid);
+      if (userProfile == null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+          userProfile = UserProfile.fromMap(doc.data()!);
+          await _profileBox.put(user.uid, userProfile);
+          if (mounted) setState(() {});
+        }
+      }
+    }
   }
 
   void _showThemeDialog() {

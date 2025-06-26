@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -315,9 +316,18 @@ class RegisterPageState extends State<RegisterPage> {
         idToken: googleAuth.idToken,
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
-      if (mounted) {
-        // Always go to onboarding after Google sign-up
-        Navigator.pushReplacementNamed(context, '/profile-onboarding');
+      final user = FirebaseAuth.instance.currentUser;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+      if (!doc.exists) {
+        // New user, go to onboarding
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/profile-onboarding');
+        }
+      } else {
+        // Existing user, go to dashboard
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } catch (e) {
       setState(() {

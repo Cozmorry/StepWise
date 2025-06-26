@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ProfileOnboardingPage extends StatefulWidget {
   const ProfileOnboardingPage({super.key});
@@ -21,40 +25,68 @@ class ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
   String? _selectedGender;
   final List<String> _genders = ['Male', 'Female', 'Other'];
   bool _loading = false;
+  String? _profileImagePath;
+  String? _errorMessage;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1000, maxHeight: 1000, imageQuality: 85);
+    if (pickedFile != null) {
+      setState(() {
+        _profileImagePath = pickedFile.path;
+      });
+    }
+  }
 
   Future<void> _saveProfile() async {
     setState(() {
       _loading = true;
+      _errorMessage = null;
     });
-
+    print('Starting profile save');
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Handle user not logged in
-      setState(() {
-        _loading = false;
-      });
+      setState(() { _loading = false; _errorMessage = 'User not logged in.'; });
+      print('User not logged in');
       return;
     }
-
-    final profile = UserProfile(
-      userId: user.uid,
-      name: nameController.text,
-      age: int.tryParse(ageController.text) ?? 0,
-      gender: _selectedGender ?? 'Other',
-      height: double.tryParse(heightController.text) ?? 0,
-      weight: double.tryParse(weightController.text) ?? 0,
-      dailyStepGoal: int.tryParse(goalController.text) ?? 10000,
-    );
-
-    final box = await Hive.openBox<UserProfile>('user_profiles');
-    await box.put(user.uid, profile);
-
-    setState(() {
-      _loading = false;
-    });
-
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+    try {
+      print('Saving profile to Hive and Firestore');
+      final profile = UserProfile(
+        userId: user.uid,
+        name: nameController.text,
+        age: int.tryParse(ageController.text) ?? 0,
+        gender: _selectedGender ?? 'Other',
+        height: double.tryParse(heightController.text) ?? 0,
+        weight: double.tryParse(weightController.text) ?? 0,
+        dailyStepGoal: int.tryParse(goalController.text) ?? 10000,
+        profilePhotoUrl: _profileImagePath,
+      );
+      final box = await Hive.openBox<UserProfile>('user_profiles');
+      await box.put(user.uid, profile);
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'userId': profile.userId,
+        'name': profile.name,
+        'age': profile.age,
+        'gender': profile.gender,
+        'weight': profile.weight,
+        'height': profile.height,
+        'dailyStepGoal': profile.dailyStepGoal,
+        'profilePhotoUrl': null,
+        'createdAt': profile.createdAt,
+        'updatedAt': profile.updatedAt,
+      });
+      print('Profile saved successfully');
+      setState(() { _loading = false; });
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      print('Profile save error: $e');
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Failed to save profile. Please try again.';
+      });
     }
   }
 
@@ -119,6 +151,39 @@ class ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
               brightness: brightness,
             ),
             const SizedBox(height: 32),
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.getSecondary(brightness),
+                      backgroundImage: _profileImagePath != null ? FileImage(File(_profileImagePath!)) : null,
+                      child: _profileImagePath == null ? Icon(Icons.person, size: 50, color: AppColors.getPrimary(brightness)) : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.camera_alt, size: 20, color: AppColors.getPrimary(brightness)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  _errorMessage!,
+                  style: AppTextStyles.body(brightness).copyWith(color: Colors.red),
+                ),
+              ),
             Center(
               child: _loading
                   ? const CircularProgressIndicator()

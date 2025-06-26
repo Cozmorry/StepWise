@@ -21,13 +21,15 @@ class ActivityRecordAdapter extends TypeAdapter<ActivityRecord> {
       steps: fields[1] as int,
       distance: fields[2] as double,
       calories: fields[3] as int,
+      manualSteps: fields[4] as int,
+      pedometerSteps: fields[5] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, ActivityRecord obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -35,7 +37,11 @@ class ActivityRecordAdapter extends TypeAdapter<ActivityRecord> {
       ..writeByte(2)
       ..write(obj.distance)
       ..writeByte(3)
-      ..write(obj.calories);
+      ..write(obj.calories)
+      ..writeByte(4)
+      ..write(obj.manualSteps)
+      ..writeByte(5)
+      ..write(obj.pedometerSteps);
   }
 
   @override

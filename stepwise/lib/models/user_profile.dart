@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'user_profile.g.dart';
 
@@ -77,5 +78,27 @@ class UserProfile extends HiveObject {
     if (dailyStepGoal != null) this.dailyStepGoal = dailyStepGoal;
     if (profilePhotoUrl != null) this.profilePhotoUrl = profilePhotoUrl;
     updatedAt = DateTime.now();
+  }
+
+  factory UserProfile.fromMap(Map<String, dynamic> map) {
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is Timestamp) return value.toDate();
+      return DateTime.tryParse(value.toString()) ?? DateTime.now();
+    }
+
+    return UserProfile(
+      userId: map['userId'] ?? '',
+      name: map['name'] ?? '',
+      age: map['age'] ?? 0,
+      gender: map['gender'] ?? 'Other',
+      weight: (map['weight'] ?? 0).toDouble(),
+      height: (map['height'] ?? 0).toDouble(),
+      dailyStepGoal: map['dailyStepGoal'] ?? 10000,
+      profilePhotoUrl: map['profilePhotoUrl'],
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
+    );
   }
 } 

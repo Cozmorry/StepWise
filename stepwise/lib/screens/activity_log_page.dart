@@ -7,6 +7,7 @@ import 'package:stepwise/models/user_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ActivityLogPage extends StatefulWidget {
   const ActivityLogPage({super.key});
@@ -254,18 +255,23 @@ class ActivityLogPageState extends State<ActivityLogPage> {
   }
 
   Widget _buildStatsGrid(Map<String, dynamic> stats, Brightness brightness) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 2.5,
+    return Column(
       children: [
-        _buildStatCard('Total Steps', NumberFormat.compact().format(stats['totalSteps']), Icons.directions_walk, brightness),
-        _buildStatCard('Avg Daily Steps', NumberFormat.compact().format(stats['avgSteps']), Icons.timeline, brightness),
-        _buildStatCard('Goals Met', '${stats['goalMetDays']} days', Icons.check_circle_outline, brightness),
-        _buildStatCard('Busiest Day', NumberFormat.compact().format(stats['highestSteps']), Icons.star_border, brightness),
+        Row(
+          children: [
+            Expanded(child: _buildStatCard('Total Steps', NumberFormat.compact().format(stats['totalSteps']), FontAwesomeIcons.shoePrints, brightness)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildStatCard('Avg Daily Steps', NumberFormat.compact().format(stats['avgSteps']), Icons.timeline, brightness)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildStatCard('Goals Met', '${stats['goalMetDays']} days', Icons.check_circle_outline, brightness)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildStatCard('Busiest Day', NumberFormat.compact().format(stats['highestSteps']), Icons.star_border, brightness)),
+          ],
+        ),
       ],
     );
   }
@@ -280,7 +286,12 @@ class ActivityLogPageState extends State<ActivityLogPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 28, color: AppColors.getPrimary(brightness)),
+            icon == FontAwesomeIcons.shoePrints
+                ? Transform.rotate(
+                    angle: -1.5708, // -90 degrees in radians
+                    child: FaIcon(FontAwesomeIcons.shoePrints, size: 28, color: AppColors.getPrimary(brightness)),
+                  )
+                : Icon(icon, size: 28, color: AppColors.getPrimary(brightness)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

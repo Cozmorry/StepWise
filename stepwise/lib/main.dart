@@ -17,6 +17,10 @@ import 'models/user_profile.dart';
 import 'screens/notifications_page.dart';
 import 'screens/activity_log_page.dart';
 import 'screens/notifications_page.dart'; // Import NotificationItemAdapter
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'screens/leaderboard_page.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +34,36 @@ void main() async {
   await Firebase.initializeApp();
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
+
+  // Firebase Messaging setup
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission();
+
+  // Local notifications setup
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print('Received a message: ${message.notification?.title}');
+    if (message.notification != null) {
+      flutterLocalNotificationsPlugin.show(
+        message.notification.hashCode,
+        message.notification?.title,
+        message.notification?.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'default_channel',
+            'Default',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+        ),
+      );
+    }
+  });
+
   runApp(ChangeNotifierProvider(
     create: (_) => ThemeModeNotifier(prefs),
     child: const StepWiseApp(),
@@ -114,6 +148,7 @@ class StepWiseApp extends StatelessWidget {
         '/notifications': (context) => const NotificationsPage(),
         '/profile-onboarding': (context) => const ProfileOnboardingPage(),
         '/activity-log': (context) => const ActivityLogPage(),
+        '/leaderboard': (context) => const LeaderboardPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/edit-profile') {
