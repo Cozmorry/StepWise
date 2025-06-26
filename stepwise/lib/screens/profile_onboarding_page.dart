@@ -75,6 +75,8 @@ class ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
         'profilePhotoUrl': null,
         'createdAt': profile.createdAt,
         'updatedAt': profile.updatedAt,
+        'achievements': profile.achievements.map((k, v) => MapEntry(k, v.toIso8601String())),
+        'notificationsOn': profile.notificationsOn,
       });
       print('Profile saved successfully');
       setState(() { _loading = false; });

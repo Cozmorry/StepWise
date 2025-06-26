@@ -21,6 +21,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/leaderboard_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'screens/badges_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -149,6 +150,7 @@ class StepWiseApp extends StatelessWidget {
         '/profile-onboarding': (context) => const ProfileOnboardingPage(),
         '/activity-log': (context) => const ActivityLogPage(),
         '/leaderboard': (context) => const LeaderboardPage(),
+        '/badges': (context) => const BadgesPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/edit-profile') {

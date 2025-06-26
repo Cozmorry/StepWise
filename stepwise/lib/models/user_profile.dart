@@ -35,6 +35,12 @@ class UserProfile extends HiveObject {
   @HiveField(9)
   late DateTime updatedAt;
 
+  @HiveField(10)
+  late Map<String, DateTime> achievements; // badgeId -> earned date
+
+  @HiveField(11)
+  late bool notificationsOn;
+
   UserProfile({
     required this.userId,
     required this.name,
@@ -46,9 +52,12 @@ class UserProfile extends HiveObject {
     this.profilePhotoUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Map<String, DateTime>? achievements,
+    this.notificationsOn = true,
   }) {
     this.createdAt = createdAt ?? DateTime.now();
     this.updatedAt = updatedAt ?? DateTime.now();
+    this.achievements = achievements ?? {};
   }
 
   // Helper methods
@@ -88,6 +97,14 @@ class UserProfile extends HiveObject {
       return DateTime.tryParse(value.toString()) ?? DateTime.now();
     }
 
+    Map<String, DateTime> parseAchievements(dynamic value) {
+      if (value == null) return {};
+      if (value is Map<String, dynamic>) {
+        return value.map((k, v) => MapEntry(k, parseDate(v)));
+      }
+      return {};
+    }
+
     return UserProfile(
       userId: map['userId'] ?? '',
       name: map['name'] ?? '',
@@ -99,6 +116,8 @@ class UserProfile extends HiveObject {
       profilePhotoUrl: map['profilePhotoUrl'],
       createdAt: parseDate(map['createdAt']),
       updatedAt: parseDate(map['updatedAt']),
+      achievements: parseAchievements(map['achievements']),
+      notificationsOn: map['notificationsOn'] ?? true,
     );
   }
 } 

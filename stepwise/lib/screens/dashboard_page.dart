@@ -14,6 +14,8 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/achievements.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -204,6 +206,8 @@ class DashboardPageState extends State<DashboardPage> {
         'steps': totalSteps,
       }, SetOptions(merge: true));
     }
+    // Achievement check
+    _checkAndAwardAchievements();
     // Confetti when goal is reached
     final goal = _userProfile?.dailyStepGoal ?? 10000;
     if (_todaySteps >= goal) {
@@ -252,7 +256,7 @@ class DashboardPageState extends State<DashboardPage> {
         if (currentDate.difference(previousDate).inDays == 1) {
             streak++;
         } else {
-            break;
+            break; 
         }
     }
     _activeStreak = streak;
@@ -700,6 +704,8 @@ class DashboardPageState extends State<DashboardPage> {
                       }, SetOptions(merge: true));
                     }
                   }
+                  // Achievement check
+                  _checkAndAwardAchievements();
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Activity logged!')),
@@ -756,5 +762,39 @@ class DashboardPageState extends State<DashboardPage> {
         );
       },
     );
+  }
+
+  // Achievement check and award logic
+  Future<void> _checkAndAwardAchievements() async {
+    if (_userProfile == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    // Gather all activity records
+    final records = _activityBox.values.toList();
+    final newlyEarned = checkForNewAchievements(_userProfile!, records);
+    if (newlyEarned.isEmpty) return;
+    final now = DateTime.now();
+    final box = Hive.box<UserProfile>('user_profiles');
+    final notificationBox = Hive.box<NotificationItem>('notifications');
+    for (final id in newlyEarned) {
+      _userProfile!.achievements[id] = now;
+      // Add notification
+      final achievement = allAchievements.firstWhere((a) => a.id == id);
+      final notification = NotificationItem(
+        id: 'achv_${id}_$now',
+        text: 'You earned the badge: ${achievement.name}! 🎉',
+        timestamp: now,
+        type: NotificationType.achievement,
+      );
+      await notificationBox.add(notification);
+      // Show local notification using NotificationHelper
+      await NotificationHelper.showAchievement(achievement.name);
+    }
+    // Save profile locally and to Firestore
+    await box.put(_userProfile!.userId, _userProfile!);
+    await FirebaseFirestore.instance.collection('users').doc(_userProfile!.userId).set({
+      'achievements': _userProfile!.achievements.map((k, v) => MapEntry(k, v.toIso8601String())),
+    }, SetOptions(merge: true));
+    if (mounted) setState(() {});
   }
 } 

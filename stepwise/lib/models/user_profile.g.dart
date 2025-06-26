@@ -27,13 +27,15 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       profilePhotoUrl: fields[7] as String?,
       createdAt: fields[8] as DateTime?,
       updatedAt: fields[9] as DateTime?,
+      achievements: (fields[10] as Map?)?.map((k, v) => MapEntry(k as String, v as DateTime)) ?? {},
+      notificationsOn: fields[11] as bool? ?? true,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.userId)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(8)
       ..write(obj.createdAt)
       ..writeByte(9)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(10)
+      ..write(obj.achievements)
+      ..writeByte(11)
+      ..write(obj.notificationsOn);
   }
 
   @override

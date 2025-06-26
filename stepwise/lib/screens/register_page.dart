@@ -4,6 +4,7 @@ import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -156,7 +157,10 @@ class RegisterPageState extends State<RegisterPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 32),
-                  Icon(Icons.directions_walk, size: 56, color: AppColors.getPrimary(brightness)),
+                  Transform.rotate(
+                    angle: -1.5708, // -90 degrees in radians
+                    child: FaIcon(FontAwesomeIcons.shoePrints, size: 56, color: AppColors.getPrimary(brightness)),
+                  ),
                   const SizedBox(height: 16),
                   Text('STEPWISE', style: AppTextStyles.heading(brightness).copyWith(fontSize: 32, letterSpacing: 2)),
                   const SizedBox(height: 32),

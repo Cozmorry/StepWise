@@ -134,6 +134,8 @@ class EditProfilePageState extends State<EditProfilePage> {
         'profilePhotoUrl': null,
         'createdAt': widget.userProfile.createdAt,
         'updatedAt': widget.userProfile.updatedAt,
+        'achievements': widget.userProfile.achievements.map((k, v) => MapEntry(k, v.toIso8601String())),
+        'notificationsOn': widget.userProfile.notificationsOn,
       });
       print('Profile saved successfully');
       if (mounted) {

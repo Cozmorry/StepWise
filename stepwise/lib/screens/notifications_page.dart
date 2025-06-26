@@ -8,6 +8,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:hive/hive.dart';
+import '../models/user_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 enum NotificationType { achievement, tip, general }
 
@@ -301,11 +303,20 @@ class NotificationHelper {
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
+  static Future<bool> _notificationsEnabled() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return true;
+    final box = Hive.box<UserProfile>('user_profiles');
+    final profile = box.get(user.uid);
+    return profile?.notificationsOn ?? true;
+  }
+
   static Future<void> showReminder({
     String title = 'StepWise Reminder',
     String body = 'Don\'t forget to check your daily step progress!',
     int id = 0,
   }) async {
+    if (!await _notificationsEnabled()) return;
     await _notificationsPlugin.show(
       id,
       title,
@@ -327,6 +338,7 @@ class NotificationHelper {
     required double distanceKm,
     int id = 1,
   }) async {
+    if (!await _notificationsEnabled()) return;
     await _notificationsPlugin.show(
       id,
       'StepWise Daily Summary',
@@ -345,5 +357,23 @@ class NotificationHelper {
 
   static Future<void> cancelAll() async {
     await _notificationsPlugin.cancelAll();
+  }
+
+  static Future<void> showAchievement(String badgeName) async {
+    if (!await _notificationsEnabled()) return;
+    await _notificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'Badge Unlocked!',
+      'You earned the badge: $badgeName! 🎉',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'achievement_channel',
+          'Achievements',
+          channelDescription: 'Achievement badges and milestones',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+    );
   }
 } 

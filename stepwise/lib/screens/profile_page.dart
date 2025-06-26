@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'notifications_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -168,16 +170,37 @@ class ProfilePageState extends State<ProfilePage> {
                   trailing: Icon(Icons.arrow_forward_ios, size: 18, color: AppColors.getPrimary(brightness)),
                   onTap: () {
                     Navigator.pushNamed(context, '/edit-profile', arguments: userProfile);
-                                    },
+                  },
+                ),
+                ListTile(
+                  title: Text('Badges & Achievements', style: AppTextStyles.body(brightness)),
+                  trailing: Icon(Icons.emoji_events, size: 20, color: AppColors.getPrimary(brightness)),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/badges');
+                  },
                 ),
                 Divider(color: AppColors.getBorder(brightness)),
                 ListTile(
                   title: Text('Turn off Notifications', style: AppTextStyles.body(brightness)),
                   trailing: Switch(
-                    value: notificationsOn,
+                    value: userProfile.notificationsOn,
                     activeColor: AppColors.getPrimary(brightness),
-                    onChanged: (val) {
-                      setState(() => notificationsOn = val);
+                    onChanged: (val) async {
+                      setState(() {
+                        userProfile.notificationsOn = val;
+                      });
+                      await userProfile.save();
+                      await FirebaseFirestore.instance.collection('users').doc(userProfile.userId).set({
+                        'notificationsOn': val,
+                      }, SetOptions(merge: true));
+                      if (!val) {
+                        await NotificationHelper.cancelAll();
+                        // Unsubscribe from FCM
+                        await FirebaseMessaging.instance.unsubscribeFromTopic('all');
+                      } else {
+                        // Subscribe to FCM
+                        await FirebaseMessaging.instance.subscribeToTopic('all');
+                      }
                     },
                   ),
                 ),
