@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ActivityLogPage extends StatefulWidget {
   const ActivityLogPage({super.key});
@@ -21,6 +22,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
   late final Box<UserProfile> _userProfileBox;
   UserProfile? _userProfile;
   late final ValueNotifier<DateTime> _selectedWeek;
+  bool _showHint = false;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
     _userProfileBox = Hive.box<UserProfile>('user_profiles');
     _loadUserProfile();
     _selectedWeek = ValueNotifier(DateTime.now());
+    _checkFirstTime();
   }
 
   void _loadUserProfile() {
@@ -46,6 +49,24 @@ class ActivityLogPageState extends State<ActivityLogPage> {
   void dispose() {
     _selectedWeek.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenHint = prefs.getBool('activity_log_hint_seen') ?? false;
+    if (!hasSeenHint) {
+      setState(() {
+        _showHint = true;
+      });
+    }
+  }
+
+  Future<void> _dismissHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('activity_log_hint_seen', true);
+    setState(() {
+      _showHint = false;
+    });
   }
 
   @override
@@ -72,6 +93,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
+                      if (_showHint) _buildHintBanner(brightness),
                       _buildWeekSelector(selectedDate, brightness),
                       const SizedBox(height: 20),
                       records.isEmpty
@@ -194,7 +216,6 @@ class ActivityLogPageState extends State<ActivityLogPage> {
         maxY: ((records.map((r) => r.steps).reduce((a, b) => a > b ? a : b) * 1.2).toDouble()),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (group) => secondaryColor,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
                 '${rod.toY.round()}\n',
@@ -227,7 +248,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
                   case 6: text = Text('Sun', style: style); break;
                   default: text = Text('', style: style); break;
                 }
-                return SideTitleWidget(meta: meta, space: 4.0, child: text);
+                return SideTitleWidget(space: 4.0, child: text, meta: meta);
               },
               reservedSize: 28,
             ),
@@ -349,6 +370,52 @@ class ActivityLogPageState extends State<ActivityLogPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHintBanner(Brightness brightness) {
+    return Card(
+      color: AppColors.getSecondary(brightness),
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.insights_rounded,
+              color: Colors.blue,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📊 Track your progress!',
+                    style: AppTextStyles.subtitle(brightness).copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'View your weekly activity summary and daily breakdown',
+                    style: AppTextStyles.body(brightness),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.grey[600]),
+              onPressed: _dismissHint,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 } 

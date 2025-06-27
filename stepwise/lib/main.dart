@@ -22,6 +22,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/badges_page.dart';
 import 'screens/reminders_page.dart';
 import 'models/reminder.dart';
+import 'screens/trends_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -136,7 +137,8 @@ class StepWiseApp extends StatelessWidget {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
-              if (snapshot.hasData) {
+              // Only show login if there's no user and we're not in a loading state
+              if (snapshot.hasData && snapshot.data != null) {
                 return const MainScreen();
               }
               return const LoginPage();
@@ -154,6 +156,7 @@ class StepWiseApp extends StatelessWidget {
         '/leaderboard': (context) => const LeaderboardPage(),
         '/badges': (context) => const BadgesPage(),
         '/reminders': (context) => const RemindersPage(),
+        '/trends': (context) => const TrendsPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/edit-profile') {

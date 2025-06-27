@@ -5,6 +5,7 @@ import '../models/reminder.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'notifications_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RemindersPage extends StatefulWidget {
   const RemindersPage({Key? key}) : super(key: key);
@@ -15,11 +16,31 @@ class RemindersPage extends StatefulWidget {
 
 class _RemindersPageState extends State<RemindersPage> {
   late Box<Reminder> _reminderBox;
+  bool _showHint = false;
 
   @override
   void initState() {
     super.initState();
     _reminderBox = Hive.box<Reminder>('reminders');
+    _checkFirstTime();
+  }
+
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenHint = prefs.getBool('reminders_hint_seen') ?? false;
+    if (!hasSeenHint) {
+      setState(() {
+        _showHint = true;
+      });
+    }
+  }
+
+  Future<void> _dismissHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('reminders_hint_seen', true);
+    setState(() {
+      _showHint = false;
+    });
   }
 
   void _addReminderDialog() async {
@@ -237,40 +258,93 @@ class _RemindersPageState extends State<RemindersPage> {
       ),
       body: reminders.isEmpty
           ? const Center(child: Text('No reminders yet.'))
-          : ListView.builder(
-              itemCount: reminders.length,
-              itemBuilder: (context, index) {
-                final reminder = reminders[index];
-                return Dismissible(
-                  key: Key(reminder.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => _deleteReminder(index),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _editReminderDialog(reminder, index),
-                    child: Card(
-                      color: AppColors.getSecondary(brightness),
-                      child: ListTile(
-                        leading: const Icon(Icons.alarm),
-                        title: Text(reminder.message),
-                        subtitle: Text(
-                          '${TimeOfDay.fromDateTime(reminder.time).format(context)} • ${reminder.repeat == 'none' ? 'One-time' : reminder.repeat.capitalize()} Reminder',
+          : Column(
+              children: [
+                if (_showHint) _buildHintBanner(brightness),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: reminders.length,
+                    itemBuilder: (context, index) {
+                      final reminder = reminders[index];
+                      return Dismissible(
+                        key: Key(reminder.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                      ),
-                    ),
+                        onDismissed: (_) => _deleteReminder(index),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _editReminderDialog(reminder, index),
+                          child: Card(
+                            color: AppColors.getSecondary(brightness),
+                            child: ListTile(
+                              leading: const Icon(Icons.alarm),
+                              title: Text(reminder.message),
+                              subtitle: Text(
+                                '${TimeOfDay.fromDateTime(reminder.time).format(context)} • ${reminder.repeat == 'none' ? 'One-time' : reminder.repeat.capitalize()} Reminder',
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addReminderDialog,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildHintBanner(Brightness brightness) {
+    return Card(
+      color: AppColors.getSecondary(brightness),
+      elevation: 2,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.alarm,
+              color: Colors.orange,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '⏰ Set reminders!',
+                    style: AppTextStyles.subtitle(brightness).copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap + to add reminders and stay on track',
+                    style: AppTextStyles.body(brightness),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.grey[600]),
+              onPressed: _dismissHint,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
       ),
     );
   }

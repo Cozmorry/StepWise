@@ -4,6 +4,7 @@ import 'package:stepwise/screens/dashboard_page.dart';
 import 'package:stepwise/screens/health_tips_page.dart';
 import 'package:stepwise/screens/profile_page.dart';
 import 'package:stepwise/widgets/bottom_nav_bar.dart';
+import 'package:flutter/services.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,6 +15,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  DateTime? _lastBackPress;
 
   final List<Widget> _pages = [
     const DashboardPage(),
@@ -28,13 +30,42 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<bool> _onWillPop() async {
+    if (_currentIndex != 0) {
+      // If not on dashboard, go to dashboard
+      setState(() {
+        _currentIndex = 0;
+      });
+      return false;
+    } else {
+      // If on dashboard, check for double tap to exit
+      final now = DateTime.now();
+      if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return false;
+      }
+      // Exit the app completely
+      SystemNavigator.pop();
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: _pages[_currentIndex],
+        bottomNavigationBar: BottomNavBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+        ),
       ),
     );
   }

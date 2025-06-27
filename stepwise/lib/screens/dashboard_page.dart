@@ -53,6 +53,7 @@ class DashboardPageState extends State<DashboardPage> {
   bool _hideSuggestedGoal = false;
   DateTime? _lastConfettiDate;
   DateTime? _lastGoalBannerActionDate;
+  bool _showGoalHint = false;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class DashboardPageState extends State<DashboardPage> {
     _loadBannerAndConfettiPrefs();
     _initDependencies();
     _startQuoteRotation();
+    _checkGoalHint();
   }
 
   Future<void> _loadBannerAndConfettiPrefs() async {
@@ -451,6 +453,51 @@ class DashboardPageState extends State<DashboardPage> {
                           style: AppTextStyles.heading(brightness),
                         ),
                         const SizedBox(height: 8),
+                        // Goal setting hint
+                        if (_showGoalHint)
+                          Card(
+                            color: AppColors.getSecondary(brightness),
+                            elevation: 2,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.flag,
+                                    color: Colors.green,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '🎯 Set your daily goal!',
+                                          style: AppTextStyles.subtitle(brightness).copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Tap "Set Goal" below to customize your step target',
+                                          style: AppTextStyles.body(brightness),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: Colors.grey[600]),
+                                    onPressed: _dismissGoalHint,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         // Goal suggestion banner
                         if (_suggestedGoal != null)
                           Card(
@@ -644,6 +691,37 @@ class DashboardPageState extends State<DashboardPage> {
                                       children: [
                                         Text('Reminders', style: AppTextStyles.subtitle(brightness)),
                                         Text('Set activity reminders!', style: AppTextStyles.body(brightness)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios, color: AppColors.getPrimary(brightness), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Trends card
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/trends');
+                          },
+                          child: Card(
+                            color: AppColors.getSecondary(brightness),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.show_chart, color: AppColors.getPrimary(brightness), size: 36),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Trends', style: AppTextStyles.subtitle(brightness)),
+                                        Text('View your progress graphs!', style: AppTextStyles.body(brightness)),
                                       ],
                                     ),
                                   ),
@@ -952,5 +1030,23 @@ class DashboardPageState extends State<DashboardPage> {
       'achievements': _userProfile!.achievements.map((k, v) => MapEntry(k, v.toIso8601String())),
     }, SetOptions(merge: true));
     if (mounted) setState(() {});
+  }
+
+  Future<void> _checkGoalHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenHint = prefs.getBool('dashboard_goal_hint_seen') ?? false;
+    if (!hasSeenHint) {
+      setState(() {
+        _showGoalHint = true;
+      });
+    }
+  }
+
+  Future<void> _dismissGoalHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dashboard_goal_hint_seen', true);
+    setState(() {
+      _showGoalHint = false;
+    });
   }
 } 
