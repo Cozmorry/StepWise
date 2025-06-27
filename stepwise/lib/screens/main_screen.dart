@@ -50,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
         );
         return false;
       }
-      // Exit the app completely
+      // Exit the app
       SystemNavigator.pop();
       return false;
     }

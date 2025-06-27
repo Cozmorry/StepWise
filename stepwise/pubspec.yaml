@@ -50,6 +50,8 @@ dependencies:
   firebase_messaging: ^14.0.0
   uuid: ^3.0.7
   share_plus: ^7.2.1
+  # For Markdown rendering in health tips
+  flutter_markdown: ^0.6.18
 
 dev_dependencies:
   flutter_test:
