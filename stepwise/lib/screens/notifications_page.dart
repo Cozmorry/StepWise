@@ -297,7 +297,7 @@ class NotificationHelper {
     tz.initializeTimeZones();
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    final InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
     await _notificationsPlugin.initialize(initializationSettings);
@@ -376,4 +376,38 @@ class NotificationHelper {
       ),
     );
   }
+
+  static Future<void> scheduleReminder({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime dateTime,
+    String repeat = 'none', // 'none', 'daily', 'weekly'
+  }) async {
+    if (!await _notificationsEnabled()) return;
+    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(dateTime, tz.local);
+    DateTimeComponents? matchComponents;
+    if (repeat == 'daily') matchComponents = DateTimeComponents.time;
+    if (repeat == 'weekly') matchComponents = DateTimeComponents.dayOfWeekAndTime;
+    await _notificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduledDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'reminder_channel',
+          'Daily Reminders',
+          channelDescription: 'Daily reminder to check your steps',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: matchComponents,
+    );
+  }
+
+  static FlutterLocalNotificationsPlugin get notificationsPlugin => _notificationsPlugin;
 } 

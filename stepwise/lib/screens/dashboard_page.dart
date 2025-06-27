@@ -165,9 +165,7 @@ class DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     final todayKey = _getTodayKey();
     final todayRecord = _activityBox.get(todayKey);
-    if (_pedometerBaseline == null) {
-      _pedometerBaseline = event.steps;
-    }
+    _pedometerBaseline ??= event.steps;
     int pedometerSteps = event.steps - (_pedometerBaseline ?? event.steps);
     if (pedometerSteps < 0) pedometerSteps = 0;
     int manualSteps = todayRecord?.manualSteps ?? 0;
@@ -373,7 +371,7 @@ class DashboardPageState extends State<DashboardPage> {
                       children: [
                         // Personalized greeting
                         Text(
-                          _getGreeting() + ', ${_userProfile!.name}!',
+                          '${_getGreeting()}, ${_userProfile!.name}!',
                           style: AppTextStyles.heading(brightness),
                         ),
                         const SizedBox(height: 8),
@@ -449,7 +447,7 @@ class DashboardPageState extends State<DashboardPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.local_fire_department, color: Colors.orange, size: 28),
+                                  const Icon(Icons.local_fire_department, color: Colors.orange, size: 28),
                                   const SizedBox(width: 8),
                                   Text(
                                     '$_activeStreak-day streak!',
@@ -468,6 +466,7 @@ class DashboardPageState extends State<DashboardPage> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        // Leaderboard card
                         GestureDetector(
                           onTap: () {
                             Navigator.pushNamed(context, '/leaderboard');
@@ -488,6 +487,37 @@ class DashboardPageState extends State<DashboardPage> {
                                       children: [
                                         Text('Leaderboard', style: AppTextStyles.subtitle(brightness)),
                                         Text('See top steppers!', style: AppTextStyles.body(brightness)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios, color: AppColors.getPrimary(brightness), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Reminders card
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/reminders');
+                          },
+                          child: Card(
+                            color: AppColors.getSecondary(brightness),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.alarm, color: AppColors.getPrimary(brightness), size: 36),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Reminders', style: AppTextStyles.subtitle(brightness)),
+                                        Text('Set activity reminders!', style: AppTextStyles.body(brightness)),
                                       ],
                                     ),
                                   ),

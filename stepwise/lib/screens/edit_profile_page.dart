@@ -7,7 +7,6 @@ import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserProfile userProfile;

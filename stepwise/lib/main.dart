@@ -14,14 +14,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/activity_record.dart';
 import 'models/user_profile.dart';
-import 'screens/notifications_page.dart';
 import 'screens/activity_log_page.dart';
-import 'screens/notifications_page.dart'; // Import NotificationItemAdapter
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Import NotificationItemAdapter
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/leaderboard_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/badges_page.dart';
+import 'screens/reminders_page.dart';
+import 'models/reminder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,9 +29,11 @@ void main() async {
   Hive.registerAdapter(ActivityRecordAdapter());
   Hive.registerAdapter(UserProfileAdapter());
   Hive.registerAdapter(NotificationItemAdapter()); // Register NotificationItem adapter
+  Hive.registerAdapter(ReminderAdapter());
   await Hive.openBox<ActivityRecord>('activity_log');
   await Hive.openBox<UserProfile>('user_profiles');
   await Hive.openBox<NotificationItem>('notifications'); // Open notifications box
+  await Hive.openBox<Reminder>('reminders');
   await Firebase.initializeApp();
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
@@ -151,6 +153,7 @@ class StepWiseApp extends StatelessWidget {
         '/activity-log': (context) => const ActivityLogPage(),
         '/leaderboard': (context) => const LeaderboardPage(),
         '/badges': (context) => const BadgesPage(),
+        '/reminders': (context) => const RemindersPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/edit-profile') {
