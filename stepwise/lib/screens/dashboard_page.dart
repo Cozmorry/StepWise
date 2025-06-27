@@ -49,13 +49,31 @@ class DashboardPageState extends State<DashboardPage> {
   int _quoteIndex = 0;
   late ConfettiController _confettiController;
   int? _pedometerBaseline;
+  int? _suggestedGoal;
+  bool _hideSuggestedGoal = false;
+  DateTime? _lastConfettiDate;
+  DateTime? _lastGoalBannerActionDate;
 
   @override
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _loadBannerAndConfettiPrefs();
     _initDependencies();
     _startQuoteRotation();
+  }
+
+  Future<void> _loadBannerAndConfettiPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final confettiStr = prefs.getString('lastConfettiDate');
+    if (confettiStr != null) {
+      _lastConfettiDate = DateTime.tryParse(confettiStr);
+    }
+    final bannerStr = prefs.getString('lastGoalBannerActionDate');
+    if (bannerStr != null) {
+      _lastGoalBannerActionDate = DateTime.tryParse(bannerStr);
+    }
+    setState(() {});
   }
 
   Future<void> _initDependencies() async {
@@ -65,6 +83,7 @@ class DashboardPageState extends State<DashboardPage> {
     await _initPedometer();
     await _loadTodayStepCount();
     _calculateActiveStreak();
+    _calculateSuggestedGoal();
   }
 
   Future<void> _loadUserProfile() async {
@@ -206,10 +225,19 @@ class DashboardPageState extends State<DashboardPage> {
     }
     // Achievement check
     _checkAndAwardAchievements();
-    // Confetti when goal is reached
+    // Confetti when goal is reached, only once per day
     final goal = _userProfile?.dailyStepGoal ?? 10000;
-    if (_todaySteps >= goal) {
+    final today = DateTime.now();
+    final isToday = _lastConfettiDate != null &&
+        _lastConfettiDate!.year == today.year &&
+        _lastConfettiDate!.month == today.month &&
+        _lastConfettiDate!.day == today.day;
+    if (_todaySteps >= goal && !isToday) {
       _confettiController.play();
+      _lastConfettiDate = today;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('lastConfettiDate', today.toIso8601String());
+      });
     }
   }
 
@@ -304,6 +332,53 @@ class DashboardPageState extends State<DashboardPage> {
     rotate();
   }
 
+  void _calculateSuggestedGoal() {
+    final now = DateTime.now();
+    // Banner should only show if 7 days have passed since last action
+    if (_lastGoalBannerActionDate != null && now.difference(_lastGoalBannerActionDate!).inDays < 7) {
+      _suggestedGoal = null;
+      return;
+    }
+    final last7Days = List.generate(7, (i) {
+      final date = now.subtract(Duration(days: i));
+      final key = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      return _activityBox.get(key)?.steps ?? 0;
+    });
+    final avg = last7Days.reduce((a, b) => a + b) ~/ 7;
+    int suggestion = ((avg * 1.1) ~/ 100) * 100; // +10%, rounded to nearest 100
+    suggestion = suggestion.clamp(8000, 15000); // healthy range
+    if (_userProfile != null && suggestion != _userProfile!.dailyStepGoal) {
+      _suggestedGoal = suggestion;
+    } else {
+      _suggestedGoal = null;
+    }
+  }
+
+  Future<void> _acceptSuggestedGoal() async {
+    if (_userProfile == null || _suggestedGoal == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final box = Hive.box<UserProfile>('user_profiles');
+      final profile = box.get(user.uid);
+      if (profile != null) {
+        profile.dailyStepGoal = _suggestedGoal!;
+        await box.put(user.uid, profile);
+        setState(() {
+          _userProfile = profile;
+        });
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'dailyStepGoal': _suggestedGoal!,
+        }, SetOptions(merge: true));
+        // Store banner action date
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('lastGoalBannerActionDate', DateTime.now().toIso8601String());
+        setState(() {
+          _suggestedGoal = null;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _stepCountStreamSubscription?.cancel();
@@ -316,6 +391,7 @@ class DashboardPageState extends State<DashboardPage> {
     final brightness = Theme.of(context).brightness;
     final goal = _userProfile?.dailyStepGoal ?? 10000;
     final progress = (goal > 0) ? (_todaySteps / goal).clamp(0.0, 1.0) : 0.0;
+    _calculateSuggestedGoal();
 
     return Scaffold(
       backgroundColor: AppColors.getBackground(brightness),
@@ -375,6 +451,56 @@ class DashboardPageState extends State<DashboardPage> {
                           style: AppTextStyles.heading(brightness),
                         ),
                         const SizedBox(height: 8),
+                        // Goal suggestion banner
+                        if (_suggestedGoal != null)
+                          Card(
+                            color: Colors.amber[100],
+                            elevation: 0,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.flag, color: Colors.orange, size: 32),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Suggested Goal', style: AppTextStyles.subtitle(brightness).copyWith(color: Colors.brown[900])),
+                                        Text('Try ${_suggestedGoal} steps/day for a healthy challenge!', style: AppTextStyles.body(brightness).copyWith(color: Colors.brown[900])),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: _acceptSuggestedGoal,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        child: const Text('Accept'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextButton(
+                                        onPressed: () async {
+                                          final prefs = await SharedPreferences.getInstance();
+                                          await prefs.setString('lastGoalBannerActionDate', DateTime.now().toIso8601String());
+                                          setState(() {
+                                            _suggestedGoal = null;
+                                          });
+                                        },
+                                        child: const Text('Cancel'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         // Rotating motivational quote
                         Center(
                           child: AnimatedSwitcher(

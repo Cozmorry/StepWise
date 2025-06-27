@@ -181,7 +181,7 @@ class ProfilePageState extends State<ProfilePage> {
                 ),
                 Divider(color: AppColors.getBorder(brightness)),
                 ListTile(
-                  title: Text('Turn off Notifications', style: AppTextStyles.body(brightness)),
+                  title: Text('Notifications', style: AppTextStyles.body(brightness)),
                   trailing: Switch(
                     value: userProfile.notificationsOn,
                     activeColor: AppColors.getPrimary(brightness),
