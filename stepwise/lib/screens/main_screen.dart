@@ -16,6 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPress;
+  late PageController _pageController;
 
   final List<Widget> _pages = [
     const DashboardPage(),
@@ -24,10 +25,47 @@ class _MainScreenState extends State<MainScreen> {
     const ProfilePage(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(
+      initialPage: _currentIndex,
+      viewportFraction: 1.0, // Ensure full viewport
+      keepPage: true, // Keep page state for better performance
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250), // Reduced duration for faster response
+      curve: Curves.easeOut, // Changed to easeOut for more responsive feel
+    );
+    // Haptic feedback after animation starts
+    if (index != _currentIndex) {
+      Future.delayed(const Duration(milliseconds: 50), () {
+        HapticFeedback.lightImpact();
+      });
+    }
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    // Haptic feedback with minimal delay
+    if (index != _currentIndex) {
+      HapticFeedback.lightImpact();
+    }
   }
 
   Future<bool> _onWillPop() async {
@@ -36,6 +74,11 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _currentIndex = 0;
       });
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 250), // Reduced duration
+        curve: Curves.easeOut, // Changed to easeOut
+      );
       return false;
     } else {
       // If on dashboard, check for double tap to exit
@@ -61,7 +104,39 @@ class _MainScreenState extends State<MainScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        body: _pages[_currentIndex],
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              physics: const PageScrollPhysics(), // Use PageScrollPhysics for better page scrolling
+              children: _pages,
+            ),
+            // Page indicator dots
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_pages.length, (index) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentIndex == index 
+                          ? Theme.of(context).primaryColor.withOpacity(0.8)
+                          : Colors.grey.withOpacity(0.3),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
           onTap: _onTabTapped,

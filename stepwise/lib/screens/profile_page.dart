@@ -8,8 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'notifications_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -102,6 +102,11 @@ class ProfilePageState extends State<ProfilePage> {
           IconButton(
             icon: Icon(Icons.logout, color: AppColors.getText(brightness)),
             onPressed: () async {
+              // Clear persisted user ID before signing out
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('persisted_user_id');
+              print('Cleared persisted user ID on logout');
+              
               await FirebaseAuth.instance.signOut();
               if (mounted) {
                 Navigator.pushReplacementNamed(context, '/login');
@@ -193,14 +198,6 @@ class ProfilePageState extends State<ProfilePage> {
                       await FirebaseFirestore.instance.collection('users').doc(userProfile.userId).set({
                         'notificationsOn': val,
                       }, SetOptions(merge: true));
-                      if (!val) {
-                        await NotificationHelper.cancelAll();
-                        // Unsubscribe from FCM
-                        await FirebaseMessaging.instance.unsubscribeFromTopic('all');
-                      } else {
-                        // Subscribe to FCM
-                        await FirebaseMessaging.instance.subscribeToTopic('all');
-                      }
                     },
                   ),
                 ),

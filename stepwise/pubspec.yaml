@@ -47,10 +47,8 @@ dependencies:
   cloud_firestore: ^4.0.0
   firebase_storage: ^11.0.0
   font_awesome_flutter: ^10.7.0
-  firebase_messaging: ^14.0.0
   uuid: ^3.0.7
   share_plus: ^7.2.1
-  # For Markdown rendering in health tips
   flutter_markdown: ^0.6.18
 
 dev_dependencies:

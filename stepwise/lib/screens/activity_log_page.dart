@@ -248,7 +248,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
                   case 6: text = Text('Sun', style: style); break;
                   default: text = Text('', style: style); break;
                 }
-                return SideTitleWidget(space: 4.0, child: text, meta: meta);
+                return SideTitleWidget(space: 4.0, meta: meta, child: text);
               },
               reservedSize: 28,
             ),
@@ -383,7 +383,7 @@ class ActivityLogPageState extends State<ActivityLogPage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.insights_rounded,
               color: Colors.blue,
               size: 24,

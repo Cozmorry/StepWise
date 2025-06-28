@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'notifications_page.dart';
 
 class ProfileOnboardingPage extends StatefulWidget {
   const ProfileOnboardingPage({super.key});
@@ -78,6 +79,7 @@ class ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
         'notificationsOn': profile.notificationsOn,
       });
       print('Profile saved successfully');
+      
       setState(() { _loading = false; });
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');

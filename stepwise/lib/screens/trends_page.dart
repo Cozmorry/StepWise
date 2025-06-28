@@ -8,14 +8,13 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
-import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TrendsPage extends StatefulWidget {
-  const TrendsPage({Key? key}) : super(key: key);
+  const TrendsPage({super.key});
 
   @override
   State<TrendsPage> createState() => _TrendsPageState();
@@ -122,7 +121,7 @@ class _TrendsPageState extends State<TrendsPage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.lightbulb_outline,
               color: Colors.amber,
               size: 24,
@@ -233,11 +232,11 @@ class _TrendsPageState extends State<TrendsPage> {
                     show: true,
                     drawVerticalLine: true,
                     horizontalInterval: (max > 0) ? (max / 4).ceilToDouble() : 1,
-                    getDrawingHorizontalLine: (value) => FlLine(
+                    getDrawingHorizontalLine: (value) => const FlLine(
                       color: Colors.white24,
                       strokeWidth: 1,
                     ),
-                    getDrawingVerticalLine: (value) => FlLine(
+                    getDrawingVerticalLine: (value) => const FlLine(
                       color: Colors.white24,
                       strokeWidth: 1,
                     ),
@@ -254,8 +253,8 @@ class _TrendsPageState extends State<TrendsPage> {
                         reservedSize: 36,
                       ),
                     ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
@@ -284,7 +283,7 @@ class _TrendsPageState extends State<TrendsPage> {
                       color: color,
                       barWidth: 3,
                       belowBarData: BarAreaData(show: true, color: color.withOpacity(0.08)),
-                      dotData: FlDotData(show: true),
+                      dotData: const FlDotData(show: true),
                     ),
                   ],
                   lineTouchData: LineTouchData(

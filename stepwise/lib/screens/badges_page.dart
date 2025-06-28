@@ -177,7 +177,7 @@ class _BadgesPageState extends State<BadgesPage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.emoji_events,
               color: Colors.amber,
               size: 24,

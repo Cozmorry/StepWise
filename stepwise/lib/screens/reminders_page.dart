@@ -8,7 +8,7 @@ import 'notifications_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RemindersPage extends StatefulWidget {
-  const RemindersPage({Key? key}) : super(key: key);
+  const RemindersPage({super.key});
 
   @override
   State<RemindersPage> createState() => _RemindersPageState();
@@ -207,7 +207,7 @@ class _RemindersPageState extends State<RemindersPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (messageController.text.trim().isEmpty || selectedTime == null) return;
+                if (messageController.text.trim().isEmpty) return;
                 final now = DateTime.now();
                 var newTime = DateTime(now.year, now.month, now.day, selectedTime.hour, selectedTime.minute);
                 if (newTime.isBefore(now)) {
@@ -313,7 +313,7 @@ class _RemindersPageState extends State<RemindersPage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.alarm,
               color: Colors.orange,
               size: 24,

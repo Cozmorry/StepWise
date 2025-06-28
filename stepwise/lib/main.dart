@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/welcome_page.dart';
@@ -16,13 +17,14 @@ import 'models/activity_record.dart';
 import 'models/user_profile.dart';
 import 'screens/activity_log_page.dart';
 // Import NotificationItemAdapter
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/leaderboard_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/badges_page.dart';
 import 'screens/reminders_page.dart';
 import 'models/reminder.dart';
 import 'screens/trends_page.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,37 +38,15 @@ void main() async {
   await Hive.openBox<NotificationItem>('notifications'); // Open notifications box
   await Hive.openBox<Reminder>('reminders');
   await Firebase.initializeApp();
+  
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
 
-  // Firebase Messaging setup
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission();
-
-  // Local notifications setup
+  // Local notifications setup (without permission request)
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('Received a message: ${message.notification?.title}');
-    if (message.notification != null) {
-      flutterLocalNotificationsPlugin.show(
-        message.notification.hashCode,
-        message.notification?.title,
-        message.notification?.body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'default_channel',
-            'Default',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
-      );
-    }
-  });
 
   runApp(ChangeNotifierProvider(
     create: (_) => ThemeModeNotifier(prefs),
@@ -134,13 +114,40 @@ class StepWiseApp extends StatelessWidget {
           return StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
+              print('Auth state changed - connection state: ${snapshot.connectionState}');
+              print('Auth state changed - has data: ${snapshot.hasData}');
+              print('Auth state changed - user: ${snapshot.data?.uid}');
+              print('Auth state changed - error: ${snapshot.error}');
+              
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
+              
+              // Check for errors
+              if (snapshot.hasError) {
+                print('Auth state error: ${snapshot.error}');
+                // On error, try to get current user directly
+                final currentUser = FirebaseAuth.instance.currentUser;
+                if (currentUser != null) {
+                  print('Current user found directly: ${currentUser.uid}');
+                  return const MainScreen();
+                }
+              }
+              
               // Only show login if there's no user and we're not in a loading state
               if (snapshot.hasData && snapshot.data != null) {
+                print('User authenticated, showing MainScreen');
                 return const MainScreen();
               }
+              
+              // Double-check current user before showing login
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser != null) {
+                print('Current user found on double-check: ${currentUser.uid}');
+                return const MainScreen();
+              }
+              
+              print('No user authenticated, showing LoginPage');
               return const LoginPage();
             },
           );

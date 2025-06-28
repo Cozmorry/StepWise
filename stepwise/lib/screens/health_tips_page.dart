@@ -47,8 +47,8 @@ class HealthTipsPage extends StatefulWidget {
 class HealthTipsPageState extends State<HealthTipsPage> {
   final List<HealthTip> _healthTips = [
     HealthTip(
-      title: 'Stay Hydrated',
-      summary: 'Drinking enough water daily is crucial for many reasons: to regulate body temperature, keep joints lubricated, prevent infections, deliver nutrients to cells, and keep organs functioning properly.',
+        title: 'Stay Hydrated',
+        summary: 'Drinking enough water daily is crucial for many reasons: to regulate body temperature, keep joints lubricated, prevent infections, deliver nutrients to cells, and keep organs functioning properly.',
       fullContent: '''Water is essential for life and plays a crucial role in maintaining good health. Your body is made up of about 60% water, and every system depends on it to function properly.
 
 **Why Hydration Matters:**
@@ -82,7 +82,7 @@ The general recommendation is 8 glasses (64 ounces) per day, but individual need
 • Eat water-rich foods like fruits and vegetables
 • Monitor your urine color (aim for light yellow)
 • Drink water with meals''',
-      category: 'Nutrition',
+        category: 'Nutrition',
       icon: Icons.water_drop,
       benefits: [
         'Improved physical performance',
@@ -101,8 +101,8 @@ The general recommendation is 8 glasses (64 ounces) per day, but individual need
       ],
     ),
     HealthTip(
-      title: 'The 20-20-20 Rule',
-      summary: 'To prevent eye strain, look away from your screen every 20 minutes and focus on an object 20 feet away for at least 20 seconds.',
+        title: 'The 20-20-20 Rule',
+        summary: 'To prevent eye strain, look away from your screen every 20 minutes and focus on an object 20 feet away for at least 20 seconds.',
       fullContent: '''Digital eye strain, also known as computer vision syndrome, affects millions of people who spend long hours looking at screens. The 20-20-20 rule is a simple but effective technique to reduce eye strain and prevent long-term vision problems.
 
 **What is Digital Eye Strain?**
@@ -143,7 +143,7 @@ Every 20 minutes, take a 20-second break and look at something 20 feet away. Thi
 • Blurred vision that doesn't improve with breaks
 • Dry eyes that don't respond to artificial tears
 • Changes in vision or eye discomfort''',
-      category: 'Wellness',
+        category: 'Wellness',
       icon: Icons.visibility,
       benefits: [
         'Reduced eye strain and fatigue',
@@ -162,8 +162,8 @@ Every 20 minutes, take a 20-second break and look at something 20 feet away. Thi
       ],
     ),
     HealthTip(
-      title: 'Incorporate Strength Training',
-      summary: 'Aim for at least two strength training sessions per week. This can help build muscle mass, improve bone density, and boost your metabolism.',
+        title: 'Incorporate Strength Training',
+        summary: 'Aim for at least two strength training sessions per week. This can help build muscle mass, improve bone density, and boost your metabolism.',
       fullContent: '''Strength training, also known as resistance training, is a form of exercise that uses resistance to build muscle strength, endurance, and size. It's essential for overall health and should be part of everyone's fitness routine, regardless of age or fitness level.
 
 **Benefits of Strength Training:**
@@ -239,7 +239,7 @@ Gradually increase the challenge by:
 • Stay hydrated before, during, and after workouts
 • Get 7-9 hours of quality sleep
 • Consider protein timing around workouts''',
-      category: 'Exercise',
+        category: 'Exercise',
       icon: Icons.fitness_center,
       benefits: [
         'Increased muscle strength and mass',
@@ -258,8 +258,8 @@ Gradually increase the challenge by:
       ],
     ),
     HealthTip(
-      title: 'Eat a Balanced Diet',
-      summary: 'Include a variety of fruits, vegetables, lean proteins, and whole grains in your diet. A balanced diet provides the essential nutrients your body needs to function effectively.',
+        title: 'Eat a Balanced Diet',
+        summary: 'Include a variety of fruits, vegetables, lean proteins, and whole grains in your diet. A balanced diet provides the essential nutrients your body needs to function effectively.',
       fullContent: '''A balanced diet provides your body with the essential nutrients it needs to function optimally. It's not about strict limitations or depriving yourself, but rather about creating a sustainable eating pattern that nourishes your body and supports your health goals.
 
 **What is a Balanced Diet?**
@@ -345,7 +345,7 @@ A balanced diet includes a variety of foods from all major food groups in approp
 • Be patient with yourself and your progress
 • Celebrate small victories along the way
 • Remember that perfection is not the goal''',
-      category: 'Nutrition',
+        category: 'Nutrition',
       icon: Icons.restaurant,
       benefits: [
         'Improved energy levels',
@@ -364,8 +364,8 @@ A balanced diet includes a variety of foods from all major food groups in approp
       ],
     ),
     HealthTip(
-      title: 'Prioritize Quality Sleep',
-      summary: 'Aim for 7-9 hours of quality sleep per night. Good sleep improves brain function, mood, and overall health. Establish a regular sleep schedule and create a restful environment.',
+        title: 'Prioritize Quality Sleep',
+        summary: 'Aim for 7-9 hours of quality sleep per night. Good sleep improves brain function, mood, and overall health. Establish a regular sleep schedule and create a restful environment.',
       fullContent: '''Sleep is not just a period of rest—it's a critical biological process that affects every aspect of your health and well-being. Quality sleep is essential for physical recovery, mental clarity, emotional regulation, and overall health.
 
 **Why Sleep Matters:**
@@ -488,7 +488,7 @@ Sleep consists of several cycles, each lasting about 90 minutes:
 
 • **Myth**: Alcohol helps you sleep better
 • **Fact**: Alcohol disrupts sleep quality''',
-      category: 'Wellness',
+        category: 'Wellness',
       icon: Icons.nights_stay,
       benefits: [
         'Improved memory and learning',
@@ -507,8 +507,8 @@ Sleep consists of several cycles, each lasting about 90 minutes:
       ],
     ),
     HealthTip(
-      title: 'Practice Mindful Stretching',
-      summary: 'Incorporate regular stretching into your routine to improve flexibility, reduce muscle tension, and increase blood flow. Even a few minutes a day can make a difference.',
+        title: 'Practice Mindful Stretching',
+        summary: 'Incorporate regular stretching into your routine to improve flexibility, reduce muscle tension, and increase blood flow. Even a few minutes a day can make a difference.',
       fullContent: '''Mindful stretching combines the physical benefits of stretching with the mental benefits of mindfulness. It's a gentle, accessible form of exercise that can improve flexibility, reduce stress, and enhance overall well-being.
 
 **What is Mindful Stretching?**
@@ -645,7 +645,7 @@ Mindful stretching involves paying full attention to your body and breath while 
 • Previous injuries affecting movement
 • Chronic pain conditions
 • Need for personalized guidance''',
-      category: 'Exercise',
+        category: 'Exercise',
       icon: Icons.self_improvement,
       benefits: [
         'Improved flexibility and range of motion',
