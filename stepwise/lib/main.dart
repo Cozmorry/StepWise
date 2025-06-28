@@ -23,8 +23,6 @@ import 'screens/badges_page.dart';
 import 'screens/reminders_page.dart';
 import 'models/reminder.dart';
 import 'screens/trends_page.dart';
-import 'package:pedometer/pedometer.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

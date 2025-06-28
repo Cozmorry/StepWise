@@ -32,6 +32,7 @@ class DashboardPageState extends State<DashboardPage> {
   late Box<ActivityRecord> _activityBox;
   String? _pedometerError;
   bool _isPedometerActive = false;
+  String? _notificationError;
   double _distanceInKm = 0.0;
   int _caloriesBurned = 0;
   int _activeStreak = 0;
@@ -52,7 +53,7 @@ class DashboardPageState extends State<DashboardPage> {
   DateTime? _lastConfettiDate;
   DateTime? _lastGoalBannerActionDate;
   bool _showGoalHint = false;
-  bool _isInitialized = false;
+  final bool _isInitialized = false;
   bool _isInitializing = false; // Add flag to prevent concurrent initialization
 
   @override
@@ -69,13 +70,69 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Check if we should initialize pedometer when dependencies change
-    // (e.g., when returning from onboarding)
+    // Request permissions immediately when dashboard loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissions();
       if (!_isPedometerActive && !_isInitializing) {
         _checkAndInitPedometer();
       }
     });
+  }
+
+  Future<void> _requestPermissions() async {
+    // Request activity recognition permission immediately when dashboard loads
+    print('Requesting activity recognition permission...');
+    final activityStatus = await Permission.activityRecognition.request();
+    
+    if (activityStatus.isGranted) {
+      print('Activity recognition permission granted');
+      if (mounted) {
+        setState(() {
+          _pedometerError = null;
+        });
+      }
+    } else if (activityStatus.isDenied) {
+      print('Activity recognition permission denied');
+      if (mounted) {
+        setState(() {
+          _pedometerError = "Permission Denied. Please enable activity tracking in settings.";
+        });
+      }
+    } else if (activityStatus.isPermanentlyDenied) {
+      print('Activity recognition permission permanently denied');
+      if (mounted) {
+        setState(() {
+          _pedometerError = "Permission permanently denied. Please enable activity tracking in app settings.";
+        });
+      }
+    }
+
+    // Request notification permission
+    print('Requesting notification permission...');
+    final notificationStatus = await Permission.notification.request();
+    
+    if (notificationStatus.isGranted) {
+      print('Notification permission granted');
+      if (mounted) {
+        setState(() {
+          _notificationError = null;
+        });
+      }
+    } else if (notificationStatus.isDenied) {
+      print('Notification permission denied');
+      if (mounted) {
+        setState(() {
+          _notificationError = "Notification permission denied. Please enable notifications in settings.";
+        });
+      }
+    } else if (notificationStatus.isPermanentlyDenied) {
+      print('Notification permission permanently denied');
+      if (mounted) {
+        setState(() {
+          _notificationError = "Notification permission permanently denied. Please enable notifications in app settings.";
+        });
+      }
+    }
   }
 
   Future<void> _checkAndInitPedometer() async {
@@ -208,8 +265,8 @@ class DashboardPageState extends State<DashboardPage> {
     _stepCountStreamSubscription = null;
     
     print('Initializing pedometer...');
-    if (await Permission.activityRecognition.request().isGranted) {
-      print('Activity recognition permission granted');
+    if (await Permission.activityRecognition.isGranted) {
+      print('Activity recognition permission already granted');
       
       try {
         // Start the stream first to get real-time updates
@@ -236,10 +293,10 @@ class DashboardPageState extends State<DashboardPage> {
         }
       }
     } else {
-      print('Activity recognition permission denied');
+      print('Activity recognition permission not granted');
       if (mounted) {
         setState(() {
-          _pedometerError = "Permission Denied. Please enable activity tracking in settings.";
+          _pedometerError = "Permission required. Please enable activity tracking in settings.";
         });
       }
     }
@@ -691,6 +748,9 @@ class DashboardPageState extends State<DashboardPage> {
                           '${_getGreeting()}, ${_userProfile!.name}!',
                           style: AppTextStyles.heading(brightness),
                         ),
+                        const SizedBox(height: 8),
+                        // Permission status indicator
+                        _buildPermissionStatus(brightness),
                         const SizedBox(height: 8),
                         // Scroll hint (only show for first few uses)
                         _buildScrollHint(brightness),
@@ -1482,38 +1542,6 @@ class DashboardPageState extends State<DashboardPage> {
             print('✅ No missed steps to sync');
             
             // Check if user was away for multiple days and show welcome back
-            if (baselineDate != null) {
-              final daysAway = DateTime.now().difference(baselineDate).inDays;
-              if (daysAway > 1) {
-                await NotificationHelper.showReminder(
-                  title: '👋 Welcome Back!',
-                  body: 'Great to see you again! You were away for $daysAway days.',
-                  id: 666, // Special ID for welcome back
-                );
-                
-                // Add to notification history
-                final notificationBox = Hive.box<NotificationItem>('notifications');
-                final notification = NotificationItem(
-                  id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
-                  text: '👋 Welcome back! You were away for $daysAway days.',
-                  timestamp: DateTime.now(),
-                  type: NotificationType.general,
-                );
-                await notificationBox.add(notification);
-              }
-            }
-          }
-        } else if (deviceStepsSinceBaseline < 0) {
-          // Device was reset or restarted, update baseline
-          print('🔄 Device step count reset detected, updating baseline');
-          _pedometerBaseline = currentSteps.steps;
-          _savePedometerBaseline(currentSteps.steps);
-          print('🎯 Updated baseline to: ${currentSteps.steps}');
-        } else {
-          print('📱 No new steps detected since last sync');
-          
-          // Check if user was away for multiple days and show welcome back
-          if (baselineDate != null) {
             final daysAway = DateTime.now().difference(baselineDate).inDays;
             if (daysAway > 1) {
               await NotificationHelper.showReminder(
@@ -1532,8 +1560,36 @@ class DashboardPageState extends State<DashboardPage> {
               );
               await notificationBox.add(notification);
             }
+                    }
+        } else if (deviceStepsSinceBaseline < 0) {
+          // Device was reset or restarted, update baseline
+          print('🔄 Device step count reset detected, updating baseline');
+          _pedometerBaseline = currentSteps.steps;
+          _savePedometerBaseline(currentSteps.steps);
+          print('🎯 Updated baseline to: ${currentSteps.steps}');
+        } else {
+          print('📱 No new steps detected since last sync');
+          
+          // Check if user was away for multiple days and show welcome back
+          final daysAway = DateTime.now().difference(baselineDate).inDays;
+          if (daysAway > 1) {
+            await NotificationHelper.showReminder(
+              title: '👋 Welcome Back!',
+              body: 'Great to see you again! You were away for $daysAway days.',
+              id: 666, // Special ID for welcome back
+            );
+            
+            // Add to notification history
+            final notificationBox = Hive.box<NotificationItem>('notifications');
+            final notification = NotificationItem(
+              id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
+              text: '👋 Welcome back! You were away for $daysAway days.',
+              timestamp: DateTime.now(),
+              type: NotificationType.general,
+            );
+            await notificationBox.add(notification);
           }
-        }
+                }
       } else {
         // No baseline set yet, set it now
         _pedometerBaseline = currentSteps.steps;
@@ -1614,6 +1670,86 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPermissionStatus(Brightness brightness) {
+    // Check if both permissions are granted
+    final activityGranted = _pedometerError == null;
+    final notificationGranted = _notificationError == null;
+    
+    // If both permissions are granted, don't show anything
+    if (activityGranted && notificationGranted) {
+      return const SizedBox.shrink();
+    }
+    
+    // Show permission issues
+    return Column(
+      children: [
+        // Activity recognition permission status
+        if (!activityGranted)
+          Card(
+            color: Colors.orange.withOpacity(0.1),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_walk, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _pedometerError ?? 'Activity tracking permission needed',
+                      style: AppTextStyles.body(brightness).copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await _requestPermissions();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        
+        // Notification permission status
+        if (!notificationGranted)
+          Card(
+            color: Colors.orange.withOpacity(0.1),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _notificationError ?? 'Notification permission needed',
+                      style: AppTextStyles.body(brightness).copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await _requestPermissions();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 } 

@@ -8,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'notifications_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
