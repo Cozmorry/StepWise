@@ -343,6 +343,7 @@ class DashboardPageState extends State<DashboardPage> {
     if (_pedometerBaseline == null) {
       _pedometerBaseline = event.steps;
       _savePedometerBaseline(event.steps);
+      print('🎯 Set initial pedometer baseline to: ${event.steps}');
       return; // Don't process this first event to avoid double counting
     }
     
@@ -356,17 +357,21 @@ class DashboardPageState extends State<DashboardPage> {
         baselineDate.year != now.year || 
         baselineDate.month != now.month || 
         baselineDate.day != now.day) {
+      print('📅 New day detected, resetting pedometer baseline');
       _pedometerBaseline = event.steps;
       _savePedometerBaseline(event.steps);
       _saveBaseline(event.steps);
       pedometerSteps = 0;
+      print('🎯 Set new day baseline to: ${event.steps}');
     }
     
     if (pedometerSteps < 0) {
       // If pedometer was reset or device restarted, update baseline
+      print('🔄 Device step count reset detected, updating baseline');
       _pedometerBaseline = event.steps;
       _savePedometerBaseline(event.steps);
       pedometerSteps = 0;
+      print('🎯 Updated baseline to: ${event.steps}');
     }
     
     // Get existing data
@@ -375,14 +380,13 @@ class DashboardPageState extends State<DashboardPage> {
     int existingPedometerSteps = todayRecord?.pedometerSteps ?? 0;
     int manualSteps = todayRecord?.manualSteps ?? 0;
     
-    // Only add new steps, not the total
-    int newPedometerSteps = pedometerSteps;
-    int totalSteps = manualSteps + newPedometerSteps;
-    
-    // Only update if steps actually changed
-    if (newPedometerSteps == existingPedometerSteps) {
+    // Only update if we have new steps
+    if (pedometerSteps <= existingPedometerSteps) {
       return;
     }
+    
+    // Calculate new total steps
+    int totalSteps = manualSteps + pedometerSteps;
     
     final activity = todayRecord ?? ActivityRecord(
       date: DateTime.now(),
@@ -392,7 +396,7 @@ class DashboardPageState extends State<DashboardPage> {
     );
     activity.steps = totalSteps;
     activity.manualSteps = manualSteps;
-    activity.pedometerSteps = newPedometerSteps;
+    activity.pedometerSteps = pedometerSteps;
     
     // Calculate distance and calories from latest steps
     double distance = 0.0;
@@ -414,6 +418,8 @@ class DashboardPageState extends State<DashboardPage> {
       _distanceInKm = distance;
       _caloriesBurned = calories;
     });
+    
+    print('📱 Updated steps: $pedometerSteps pedometer + $manualSteps manual = $totalSteps total');
     
     // Update Firestore steps for leaderboard (async, don't wait)
     final user = FirebaseAuth.instance.currentUser;
@@ -1200,9 +1206,20 @@ class DashboardPageState extends State<DashboardPage> {
                 if (steps > 0) {
                   final key = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
                   final existing = _activityBox.get(key);
-                  int manualSteps = steps + (existing?.manualSteps ?? 0);
+                  
+                  // For today, replace manual steps; for other days, add to existing
+                  int manualSteps;
+                  if (key == _getTodayKey()) {
+                    // For today, replace manual steps to avoid double counting
+                    manualSteps = steps;
+                  } else {
+                    // For other days, add to existing manual steps
+                    manualSteps = steps + (existing?.manualSteps ?? 0);
+                  }
+                  
                   int pedometerSteps = existing?.pedometerSteps ?? 0;
                   int totalSteps = manualSteps + pedometerSteps;
+                  
                   // Calculate distance and calories from latest steps
                   double distance = 0.0;
                   int calories = 0;
@@ -1211,6 +1228,7 @@ class DashboardPageState extends State<DashboardPage> {
                     distance = (totalSteps * strideLength) / 1000;
                     calories = (totalSteps * _userProfile!.weight * 0.0005).round();
                   }
+                  
                   final activity = existing ?? ActivityRecord(
                     date: selectedDate,
                     steps: 0,
@@ -1514,7 +1532,7 @@ class DashboardPageState extends State<DashboardPage> {
             // Show notification to user
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('🎯 Synced $missedSteps steps from while you were away!'),
+                content: Text('🎯 Synced $missedSteps steps from your device while you were away!'),
                 duration: const Duration(seconds: 3),
                 backgroundColor: Colors.green,
               ),

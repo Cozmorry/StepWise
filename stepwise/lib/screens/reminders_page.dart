@@ -44,96 +44,111 @@ class _RemindersPageState extends State<RemindersPage> {
   }
 
   void _addReminderDialog() async {
-    TimeOfDay? selectedTime = TimeOfDay.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
     final messageController = TextEditingController();
     String repeat = 'none';
+    
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Reminder'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: messageController,
-                decoration: const InputDecoration(labelText: 'Message'),
-              ),
-              const SizedBox(height: 8),
-              Row(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Reminder'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Time:'),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime!,
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          selectedTime = picked;
+                  TextField(
+                    controller: messageController,
+                    decoration: const InputDecoration(labelText: 'Message'),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text('Time:'),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: selectedTime,
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedTime = picked;
+                            });
+                          }
+                        },
+                        child: Text(selectedTime.format(context)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: repeat,
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('One-time')),
+                      DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          repeat = val;
                         });
                       }
                     },
-                    child: Text(selectedTime!.format(context)),
+                    decoration: const InputDecoration(labelText: 'Repeat'),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: repeat,
-                items: const [
-                  DropdownMenuItem(value: 'none', child: Text('One-time')),
-                  DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                  DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                ],
-                onChanged: (val) {
-                  if (val != null) repeat = val;
-                },
-                decoration: const InputDecoration(labelText: 'Repeat'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (messageController.text.trim().isEmpty || selectedTime == null) return;
-                final now = DateTime.now();
-                var reminderTime = DateTime(now.year, now.month, now.day, selectedTime!.hour, selectedTime!.minute);
-                if (reminderTime.isBefore(now)) {
-                  if (repeat == 'weekly') {
-                    reminderTime = reminderTime.add(const Duration(days: 7));
-                  } else {
-                    reminderTime = reminderTime.add(const Duration(days: 1));
-                  }
-                }
-                final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-                final reminder = Reminder(
-                  id: const Uuid().v4(),
-                  time: reminderTime,
-                  message: messageController.text.trim(),
-                  repeat: repeat,
-                  notificationId: notificationId,
-                );
-                await _reminderBox.add(reminder);
-                await NotificationHelper.scheduleReminder(
-                  id: notificationId,
-                  title: 'StepWise Reminder',
-                  body: reminder.message,
-                  dateTime: reminder.time,
-                  repeat: reminder.repeat,
-                );
-                if (mounted) setState(() {});
-                Navigator.pop(context);
-              },
-              child: const Text('Add'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (messageController.text.trim().isEmpty) return;
+                    
+                    final now = DateTime.now();
+                    var reminderTime = DateTime(now.year, now.month, now.day, selectedTime.hour, selectedTime.minute);
+                    if (reminderTime.isBefore(now)) {
+                      if (repeat == 'weekly') {
+                        reminderTime = reminderTime.add(const Duration(days: 7));
+                      } else {
+                        reminderTime = reminderTime.add(const Duration(days: 1));
+                      }
+                    }
+                    
+                    final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+                    final reminder = Reminder(
+                      id: const Uuid().v4(),
+                      time: reminderTime,
+                      message: messageController.text.trim(),
+                      repeat: repeat,
+                      notificationId: notificationId,
+                    );
+                    
+                    await _reminderBox.add(reminder);
+                    await NotificationHelper.scheduleReminder(
+                      id: notificationId,
+                      title: 'StepWise Reminder',
+                      body: reminder.message,
+                      dateTime: reminder.time,
+                      repeat: reminder.repeat,
+                    );
+                    
+                    if (mounted) {
+                      setState(() {});
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -148,97 +163,152 @@ class _RemindersPageState extends State<RemindersPage> {
     if (mounted) setState(() {});
   }
 
+  void _clearAllReminders() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All Reminders'),
+        content: const Text('Are you sure you want to delete all reminders? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      // Cancel all notifications
+      for (final reminder in _reminderBox.values) {
+        await NotificationHelper.notificationsPlugin.cancel(reminder.notificationId);
+      }
+      
+      // Clear all reminders from storage
+      await _reminderBox.clear();
+      
+      if (mounted) setState(() {});
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All reminders cleared'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _editReminderDialog(Reminder reminder, int index) async {
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(reminder.time);
     final messageController = TextEditingController(text: reminder.message);
     String repeat = reminder.repeat;
+    
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Reminder'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: messageController,
-                decoration: const InputDecoration(labelText: 'Message'),
-              ),
-              const SizedBox(height: 8),
-              Row(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Reminder'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Time:'),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime,
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          selectedTime = picked;
+                  TextField(
+                    controller: messageController,
+                    decoration: const InputDecoration(labelText: 'Message'),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text('Time:'),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: selectedTime,
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedTime = picked;
+                            });
+                          }
+                        },
+                        child: Text(selectedTime.format(context)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: repeat,
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('One-time')),
+                      DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          repeat = val;
                         });
                       }
                     },
-                    child: Text(selectedTime.format(context)),
+                    decoration: const InputDecoration(labelText: 'Repeat'),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: repeat,
-                items: const [
-                  DropdownMenuItem(value: 'none', child: Text('One-time')),
-                  DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                  DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                ],
-                onChanged: (val) {
-                  if (val != null) repeat = val;
-                },
-                decoration: const InputDecoration(labelText: 'Repeat'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (messageController.text.trim().isEmpty) return;
-                final now = DateTime.now();
-                var newTime = DateTime(now.year, now.month, now.day, selectedTime.hour, selectedTime.minute);
-                if (newTime.isBefore(now)) {
-                  if (repeat == 'weekly') {
-                    newTime = newTime.add(const Duration(days: 7));
-                  } else {
-                    newTime = newTime.add(const Duration(days: 1));
-                  }
-                }
-                await NotificationHelper.notificationsPlugin.cancel(reminder.notificationId);
-                final updatedReminder = Reminder(
-                  id: reminder.id,
-                  time: newTime,
-                  message: messageController.text.trim(),
-                  repeat: repeat,
-                  notificationId: reminder.notificationId,
-                );
-                await _reminderBox.putAt(index, updatedReminder);
-                await NotificationHelper.scheduleReminder(
-                  id: updatedReminder.notificationId,
-                  title: 'StepWise Reminder',
-                  body: updatedReminder.message,
-                  dateTime: updatedReminder.time,
-                  repeat: updatedReminder.repeat,
-                );
-                if (mounted) setState(() {});
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (messageController.text.trim().isEmpty) return;
+                    
+                    final now = DateTime.now();
+                    var newTime = DateTime(now.year, now.month, now.day, selectedTime.hour, selectedTime.minute);
+                    if (newTime.isBefore(now)) {
+                      if (repeat == 'weekly') {
+                        newTime = newTime.add(const Duration(days: 7));
+                      } else {
+                        newTime = newTime.add(const Duration(days: 1));
+                      }
+                    }
+                    
+                    await NotificationHelper.notificationsPlugin.cancel(reminder.notificationId);
+                    final updatedReminder = Reminder(
+                      id: reminder.id,
+                      time: newTime,
+                      message: messageController.text.trim(),
+                      repeat: repeat,
+                      notificationId: reminder.notificationId,
+                    );
+                    
+                    await _reminderBox.putAt(index, updatedReminder);
+                    await NotificationHelper.scheduleReminder(
+                      id: updatedReminder.notificationId,
+                      title: 'StepWise Reminder',
+                      body: updatedReminder.message,
+                      dateTime: updatedReminder.time,
+                      repeat: updatedReminder.repeat,
+                    );
+                    
+                    if (mounted) {
+                      setState(() {});
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -255,6 +325,14 @@ class _RemindersPageState extends State<RemindersPage> {
         elevation: 0,
         title: Text('Reminders', style: AppTextStyles.title(brightness)),
         centerTitle: true,
+        actions: [
+          if (reminders.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear_all),
+              onPressed: _clearAllReminders,
+              tooltip: 'Clear all reminders',
+            ),
+        ],
       ),
       body: reminders.isEmpty
           ? const Center(child: Text('No reminders yet.'))
