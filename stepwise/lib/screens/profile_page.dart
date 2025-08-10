@@ -183,6 +183,19 @@ class ProfilePageState extends State<ProfilePage> {
                     Navigator.pushNamed(context, '/badges');
                   },
                 ),
+                ListTile(
+                  title: Text('Personalized Insights', style: AppTextStyles.body(brightness)),
+                  subtitle: Text('Get personalized health messages based on your profile', 
+                    style: AppTextStyles.body(brightness).copyWith(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  trailing: Icon(Icons.psychology, size: 20, color: AppColors.getPrimary(brightness)),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/personalized-messages');
+                  },
+                ),
                 Divider(color: AppColors.getBorder(brightness)),
                 ListTile(
                   title: Text('Notifications', style: AppTextStyles.body(brightness)),

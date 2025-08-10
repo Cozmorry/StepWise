@@ -23,6 +23,7 @@ import 'screens/badges_page.dart';
 import 'screens/reminders_page.dart';
 import 'models/reminder.dart';
 import 'screens/trends_page.dart';
+import 'screens/personalized_messages_page.dart';
 import 'services/leaderboard_service.dart';
 
 void main() async {
@@ -164,6 +165,7 @@ class StepWiseApp extends StatelessWidget {
         '/activity-log': (context) => const ActivityLogPage(),
         '/leaderboard': (context) => const LeaderboardPage(),
         '/badges': (context) => const BadgesPage(),
+        '/personalized-messages': (context) => const PersonalizedMessagesPage(),
         '/reminders': (context) => const RemindersPage(),
         '/trends': (context) => const TrendsPage(),
       },
