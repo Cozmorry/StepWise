@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,10 +28,16 @@ class LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
+      
+      // Store user ID in SharedPreferences for persistence
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('persisted_user_id', userCredential.user!.uid);
+      print('Stored user ID in SharedPreferences: ${userCredential.user!.uid}');
+      
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
@@ -74,7 +81,13 @@ class LoginPageState extends State<LoginPage> {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
       final user = FirebaseAuth.instance.currentUser;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+      
+      // Store user ID in SharedPreferences for persistence
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('persisted_user_id', user!.uid);
+      print('Stored user ID in SharedPreferences: ${user.uid}');
+      
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (!doc.exists) {
         // New user, go to onboarding
         if (mounted) {

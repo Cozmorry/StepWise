@@ -120,38 +120,11 @@ class _MainScreenState extends State<MainScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        body: Stack(
-          children: [
-            PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              physics: const PageScrollPhysics(), // Use PageScrollPhysics for better page scrolling
-              children: _pages,
-            ),
-            // Page indicator dots
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 10,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_pages.length, (index) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentIndex == index 
-                          ? Theme.of(context).primaryColor.withOpacity(0.8)
-                          : Colors.grey.withOpacity(0.3),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ],
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: _onPageChanged,
+          physics: const PageScrollPhysics(), // Use PageScrollPhysics for better page scrolling
+          children: _pages,
         ),
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,

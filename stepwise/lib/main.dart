@@ -25,6 +25,7 @@ import 'models/reminder.dart';
 import 'screens/trends_page.dart';
 import 'screens/personalized_messages_page.dart';
 import 'services/leaderboard_service.dart';
+import 'screens/notifications_page.dart' show NotificationHelper;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,17 @@ void main() async {
   await Hive.openBox<NotificationItem>('notifications'); // Open notifications box
   await Hive.openBox<Reminder>('reminders');
   await Firebase.initializeApp();
+  
+  // Check current user at startup for debugging
+  final currentUser = FirebaseAuth.instance.currentUser;
+  print('App startup - Current user: ${currentUser?.uid}');
+  
+  // Store user ID in SharedPreferences for persistence fallback
+  if (currentUser != null) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('persisted_user_id', currentUser.uid);
+    print('Stored user ID in SharedPreferences: ${currentUser.uid}');
+  }
   
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
@@ -94,6 +106,7 @@ class StepWiseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeModeNotifier>(context);
+    
     return MaterialApp(
       title: 'StepWise',
       debugShowCheckedModeBanner: false,
@@ -137,7 +150,7 @@ class StepWiseApp extends StatelessWidget {
                 }
               }
               
-              // Only show login if there's no user and we're not in a loading state
+              // Check if user is authenticated
               if (snapshot.hasData && snapshot.data != null) {
                 print('User authenticated, showing MainScreen');
                 return const MainScreen();
@@ -150,8 +163,40 @@ class StepWiseApp extends StatelessWidget {
                 return const MainScreen();
               }
               
-              print('No user authenticated, showing LoginPage');
-              return const LoginPage();
+              // Additional fallback: check if we have a recent authentication
+              // This helps with cases where the auth state stream might be temporarily unavailable
+              return FutureBuilder<User?>(
+                future: Future.delayed(const Duration(milliseconds: 200), () async {
+                  try {
+                    return FirebaseAuth.instance.currentUser;
+                  } catch (e) {
+                    print('Error getting current user: $e');
+                    return null;
+                  }
+                }),
+                builder: (context, futureSnapshot) {
+                  if (futureSnapshot.hasData && futureSnapshot.data != null) {
+                    print('User found in fallback check: ${futureSnapshot.data!.uid}');
+                    return const MainScreen();
+                  }
+                  
+                  // Final fallback: check SharedPreferences for persisted user ID
+                  return FutureBuilder<String?>(
+                    future: SharedPreferences.getInstance().then((prefs) => prefs.getString('persisted_user_id')),
+                    builder: (context, prefsSnapshot) {
+                      if (prefsSnapshot.hasData && prefsSnapshot.data != null) {
+                        print('Found persisted user ID: ${prefsSnapshot.data}');
+                        // If we have a persisted user ID but no current user, 
+                        // try to restore the session or show login
+                        return const LoginPage();
+                      }
+                      
+                      print('No user authenticated, showing LoginPage');
+                      return const LoginPage();
+                    },
+                  );
+                },
+              );
             },
           );
         },
