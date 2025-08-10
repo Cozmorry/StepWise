@@ -23,6 +23,7 @@ import 'screens/badges_page.dart';
 import 'screens/reminders_page.dart';
 import 'models/reminder.dart';
 import 'screens/trends_page.dart';
+import 'services/leaderboard_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,9 @@ void main() async {
   
   final prefs = await SharedPreferences.getInstance();
   await NotificationHelper.initialize();
+  
+  // Perform daily leaderboard reset check on app startup
+  await LeaderboardService.performDailyResetIfNeeded();
 
   // Local notifications setup (without permission request)
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();

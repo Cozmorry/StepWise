@@ -17,13 +17,10 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   DateTime? _lastBackPress;
   late PageController _pageController;
-
-  final List<Widget> _pages = [
-    const DashboardPage(),
-    const ActivityLogPage(),
-    const HealthTipsPage(),
-    const ProfilePage(),
-  ];
+  late List<Widget> _pages;
+  
+  // Global key for dashboard page to access its state
+  final GlobalKey<DashboardPageState> _dashboardKey = GlobalKey<DashboardPageState>();
 
   @override
   void initState() {
@@ -33,6 +30,14 @@ class _MainScreenState extends State<MainScreen> {
       viewportFraction: 1.0, // Ensure full viewport
       keepPage: true, // Keep page state for better performance
     );
+    
+    // Initialize pages list with dashboard key
+    _pages = [
+      DashboardPage(key: _dashboardKey),
+      const ActivityLogPage(),
+      const HealthTipsPage(),
+      const ProfilePage(),
+    ];
   }
 
   @override
@@ -59,12 +64,23 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onPageChanged(int index) {
+    final previousIndex = _currentIndex;
     setState(() {
       _currentIndex = index;
     });
     // Haptic feedback with minimal delay
-    if (index != _currentIndex) {
+    if (index != previousIndex) {
       HapticFeedback.lightImpact();
+    }
+    
+    // If switching to dashboard (index 0) from another page, notify the dashboard page
+    if (index == 0 && previousIndex != 0) {
+      // Use a post-frame callback to ensure the page is fully loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_dashboardKey.currentState != null) {
+          _dashboardKey.currentState!.onDashboardVisible();
+        }
+      });
     }
   }
 

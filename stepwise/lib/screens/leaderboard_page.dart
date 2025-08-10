@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../services/leaderboard_service.dart';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -17,18 +18,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   void initState() {
     super.initState();
-    _leaderboardStream = _getLeaderboardStream();
+    _initializeLeaderboard();
+  }
+
+  Future<void> _initializeLeaderboard() async {
+    // Perform daily reset check when leaderboard is opened
+    await LeaderboardService.performDailyResetIfNeeded();
+    setState(() {
+      _leaderboardStream = _getLeaderboardStream();
+    });
   }
 
   Stream<QuerySnapshot> _getLeaderboardStream() {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .orderBy('steps', descending: true)
-        .limit(10)
-        .snapshots();
+    return LeaderboardService.getDailyLeaderboardStream();
   }
 
   Future<void> _refresh() async {
+    // Perform daily reset check on refresh
+    await LeaderboardService.performDailyResetIfNeeded();
     setState(() {
       _leaderboardStream = _getLeaderboardStream();
     });
@@ -176,12 +183,23 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       appBar: AppBar(
         backgroundColor: AppColors.getPrimary(brightness),
         elevation: 0,
-        title: Text(
-          '🏆 Leaderboard',
-          style: AppTextStyles.title(brightness).copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          children: [
+            Text(
+              '🏆 Leaderboard',
+              style: AppTextStyles.title(brightness).copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Daily Steps',
+              style: AppTextStyles.body(brightness).copyWith(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
         centerTitle: true,
         actions: [
@@ -189,6 +207,15 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _refresh,
             tooltip: 'Refresh',
+          ),
+          // Manual reset button for testing (can be removed in production)
+          IconButton(
+            icon: const Icon(Icons.restart_alt, color: Colors.white),
+            onPressed: () async {
+              await LeaderboardService.manualReset();
+              _refresh();
+            },
+            tooltip: 'Manual Reset (Testing)',
           ),
         ],
       ),
@@ -248,9 +275,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Be the first to log some steps!',
+                      'Be the first to log some steps today!',
                       style: AppTextStyles.body(brightness).copyWith(
                         color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Leaderboard resets daily at midnight',
+                        style: AppTextStyles.body(brightness).copyWith(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -258,17 +300,111 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               );
             }
             
-            final users = snapshot.data!.docs;
+            final allUsers = snapshot.data!.docs;
+            
+            // Filter out users who haven't been active today and have less than 1 step
+            final today = DateTime.now();
+            final activeUsers = allUsers.where((doc) {
+              final userData = doc.data() as Map<String, dynamic>;
+              final lastActiveStr = userData['lastActiveDate'];
+              final dailySteps = userData['dailySteps'] ?? 0;
+              
+              // Filter out users with less than 1 step
+              if (dailySteps < 1) return false;
+              
+              if (lastActiveStr == null) return false;
+              
+              try {
+                final lastActive = DateTime.parse(lastActiveStr);
+                return lastActive.year == today.year && 
+                       lastActive.month == today.month && 
+                       lastActive.day == today.day;
+              } catch (e) {
+                return false;
+              }
+            }).take(10).toList();
+            
+            if (activeUsers.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.people_outline,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No active users today',
+                      style: AppTextStyles.subtitle(brightness).copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Be the first to log some steps today!',
+                      style: AppTextStyles.body(brightness).copyWith(
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Leaderboard resets daily at midnight',
+                        style: AppTextStyles.body(brightness).copyWith(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
             return ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-              itemCount: users.length,
+              itemCount: activeUsers.length + 1, // +1 for the reset info header
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final user = users[index].data() as Map<String, dynamic>;
+                // Show reset info at the top
+                if (index == 0) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Today\'s leaderboard • Resets daily at midnight',
+                            style: AppTextStyles.body(brightness).copyWith(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                final user = activeUsers[index - 1].data() as Map<String, dynamic>;
                 final isCurrentUser = currentUser != null && user['userId'] == currentUser.uid;
-                final steps = user['steps'] ?? 0;
+                final steps = user['dailySteps'] ?? 0;
                 final name = user['name'] ?? 'Unknown';
-                final position = index + 1;
+                final position = index;
                 
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 300),

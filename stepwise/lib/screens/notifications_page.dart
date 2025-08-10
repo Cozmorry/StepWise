@@ -189,20 +189,8 @@ class NotificationsPageState extends State<NotificationsPage> {
           setState(() {
             _currentIndex = index;
           });
-          switch (index) {
-            case 0:
-              Navigator.pushReplacementNamed(context, '/dashboard');
-              break;
-            case 1:
-              Navigator.pushReplacementNamed(context, '/activity-log');
-              break;
-            case 2:
-              Navigator.pushReplacementNamed(context, '/health-tips');
-              break;
-            case 3:
-              Navigator.pushReplacementNamed(context, '/profile');
-              break;
-          }
+          // Simply pop back to the main screen without creating new instances
+          Navigator.pop(context);
         },
       ),
     );

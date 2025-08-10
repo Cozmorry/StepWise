@@ -14,6 +14,7 @@ import 'package:confetti/confetti.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/achievements.dart';
+import '../services/leaderboard_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -53,7 +54,7 @@ class DashboardPageState extends State<DashboardPage> {
   DateTime? _lastConfettiDate;
   DateTime? _lastGoalBannerActionDate;
   bool _showGoalHint = false;
-  final bool _isInitialized = false;
+  bool _isInitialized = false; // Track if dashboard has been initialized
   bool _isInitializing = false; // Add flag to prevent concurrent initialization
 
   @override
@@ -70,11 +71,14 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Request permissions immediately when dashboard loads
+    // Only request permissions and initialize pedometer on first load
+    // This prevents unnecessary re-initialization when switching pages
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestPermissions();
-      if (!_isPedometerActive && !_isInitializing) {
-        _checkAndInitPedometer();
+      if (!_isInitialized) {
+        _requestPermissions();
+        if (!_isPedometerActive && !_isInitializing) {
+          _checkAndInitPedometer();
+        }
       }
     });
   }
@@ -174,11 +178,28 @@ class DashboardPageState extends State<DashboardPage> {
       await _loadUserProfile();
       await _loadBaseline();
       await _restoreDataFromFirestore();
-      await _syncMissedPedometerSteps();
+      
+      // Only sync missed steps if pedometer is not already active
+      if (!_isPedometerActive) {
+        await _syncMissedPedometerSteps();
+      } else {
+        print('Pedometer already active, skipping missed steps sync');
+      }
+      
       await _loadTodayStepCount();
-      await _initPedometer();
+      
+      // Only initialize pedometer if it's not already active
+      if (!_isPedometerActive) {
+        await _initPedometer();
+      } else {
+        print('Pedometer already active, skipping initialization');
+      }
+      
       _calculateActiveStreak();
       _calculateSuggestedGoal();
+      
+      // Mark initialization as complete
+      _isInitialized = true;
     } finally {
       _isInitializing = false;
     }
@@ -317,13 +338,17 @@ class DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _loadTodayStepCount() async {
+    print('🔄 _loadTodayStepCount called - Current steps: $_todaySteps');
     final todayKey = _getTodayKey();
     final todayRecord = _activityBox.get(todayKey);
     if (todayRecord != null) {
+      final newSteps = (todayRecord.manualSteps ?? 0) + (todayRecord.pedometerSteps ?? 0);
+      print('📊 Loading from storage: $newSteps steps (manual: ${todayRecord.manualSteps}, pedometer: ${todayRecord.pedometerSteps})');
       if (mounted) {
         setState(() {
-          _steps = (todayRecord.manualSteps ?? 0) + (todayRecord.pedometerSteps ?? 0);
-          _todaySteps = _steps;
+          print('🔄 _loadTodayStepCount updating step count from $_todaySteps to $newSteps');
+          _steps = newSteps;
+          _todaySteps = newSteps;
           // Calculate distance and calories from latest steps
           if (_userProfile != null) {
             final strideLength = _userProfile!.height * 0.415 / 100; // in meters
@@ -333,6 +358,10 @@ class DashboardPageState extends State<DashboardPage> {
           _updateCalculations();
         });
       }
+    } else {
+      print('⚠️ No today record found in storage - keeping current step count: $_todaySteps');
+      // Don't reset the step count if no record is found, as the pedometer stream
+      // should already have the correct data
     }
   }
 
@@ -413,6 +442,7 @@ class DashboardPageState extends State<DashboardPage> {
     await _syncToBothStorages(todayKey, activity);
     
     setState(() {
+      print('🔄 Updating step count from $_todaySteps to $totalSteps');
       _steps = totalSteps;
       _todaySteps = totalSteps;
       _distanceInKm = distance;
@@ -424,10 +454,16 @@ class DashboardPageState extends State<DashboardPage> {
     // Update Firestore steps for leaderboard (async, don't wait)
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Update both legacy steps field and new daily steps field
       FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'steps': totalSteps,
       }, SetOptions(merge: true)).catchError((e) {
         print('Error updating Firestore: $e');
+      });
+      
+      // Update daily steps for leaderboard
+      LeaderboardService.updateUserDailySteps(totalSteps).catchError((e) {
+        print('Error updating daily steps: $e');
       });
     }
     
@@ -597,6 +633,11 @@ class DashboardPageState extends State<DashboardPage> {
       FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'steps': steps,
       }, SetOptions(merge: true));
+      
+      // Update daily steps for leaderboard
+      LeaderboardService.updateUserDailySteps(steps).catchError((e) {
+        print('Error updating daily steps: $e');
+      });
     }
   }
 
@@ -692,6 +733,24 @@ class DashboardPageState extends State<DashboardPage> {
       print('Retrying pedometer initialization...');
       await _initPedometer();
     }
+  }
+
+  // Method to handle dashboard becoming visible again (called from MainScreen)
+  Future<void> onDashboardVisible() async {
+    print('🔄 Dashboard became visible - Current steps: $_todaySteps, Pedometer active: $_isPedometerActive');
+    
+    // Only refresh data if pedometer is not active (indicating it might have stopped)
+    if (!_isPedometerActive && _isInitialized) {
+      print('Dashboard became visible, checking pedometer status...');
+      await _checkAndInitPedometer();
+    }
+    
+    // Since the pedometer is streaming data continuously, we don't need to refresh
+    // the step count when returning to the dashboard. The streaming data is already
+    // up to date and any changes are reflected in real-time.
+    print('Dashboard became visible, pedometer active, no refresh needed');
+    
+    // No setState needed since we're not changing any data
   }
 
   @override
@@ -1042,48 +1101,50 @@ class DashboardPageState extends State<DashboardPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Expanded(
+                            Flexible(
                               child: ElevatedButton.icon(
                                 onPressed: _logActivity,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Log Activity'),
+                                icon: const Icon(Icons.add, size: 20),
+                                label: const Text('Log Activity', style: TextStyle(fontSize: 14)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.getPrimary(brightness),
                                   foregroundColor: AppColors.buttonText,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  minimumSize: const Size(0, 48),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Expanded(
+                            Flexible(
                               child: ElevatedButton.icon(
                                 onPressed: () {
                                   Navigator.pushNamed(context, '/activity-log');
                                 },
-                                icon: const Icon(Icons.history),
-                                label: const Text('View History'),
+                                icon: const Icon(Icons.history, size: 20),
+                                label: const Text('View History', style: TextStyle(fontSize: 14)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.getSecondary(brightness),
                                   foregroundColor: AppColors.getPrimary(brightness),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  minimumSize: const Size(0, 48),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Expanded(
+                            Flexible(
                               child: ElevatedButton.icon(
                                 onPressed: _showSetGoalDialog,
-                                icon: const Icon(Icons.flag, size: 28),
-                                label: const Text('Set Goal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                icon: const Icon(Icons.flag, size: 20),
+                                label: const Text('Set Goal', style: TextStyle(fontSize: 14)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.getPrimary(brightness),
                                   foregroundColor: AppColors.buttonText,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    side: BorderSide(color: AppColors.getPrimary(brightness), width: 2),
-                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                   elevation: 4,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  minimumSize: const Size(0, 48),
                                 ),
                               ),
                             ),
@@ -1258,6 +1319,11 @@ class DashboardPageState extends State<DashboardPage> {
                       FirebaseFirestore.instance.collection('users').doc(user.uid).set({
                         'steps': totalSteps,
                       }, SetOptions(merge: true));
+                      
+                      // Update daily steps for leaderboard
+                      LeaderboardService.updateUserDailySteps(totalSteps).catchError((e) {
+                        print('Error updating daily steps: $e');
+                      });
                     }
                   }
                   // Achievement check
