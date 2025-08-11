@@ -123,7 +123,7 @@ class _PersonalizedMessagesPageState extends State<PersonalizedMessagesPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildSummaryRow('BMI', '${_userProfile!.bmi.toStringAsFixed(1)}', brightness),
+            _buildSummaryRow('BMI', _userProfile!.bmi.toStringAsFixed(1), brightness),
             _buildSummaryRow('Category', _userProfile!.bmiCategory, brightness),
             _buildSummaryRow('Age', '${_userProfile!.age} years', brightness),
             _buildSummaryRow('Gender', _userProfile!.gender, brightness),
@@ -182,7 +182,7 @@ class _PersonalizedMessagesPageState extends State<PersonalizedMessagesPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.green.withOpacity(0.3)),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Daily',
                     style: TextStyle(
                       color: Colors.green,
@@ -242,7 +242,7 @@ class _PersonalizedMessagesPageState extends State<PersonalizedMessagesPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.lightbulb, color: Colors.amber, size: 24),
+                const Icon(Icons.lightbulb, color: Colors.amber, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

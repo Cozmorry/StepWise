@@ -25,7 +25,6 @@ import 'models/reminder.dart';
 import 'screens/trends_page.dart';
 import 'screens/personalized_messages_page.dart';
 import 'services/leaderboard_service.dart';
-import 'screens/notifications_page.dart' show NotificationHelper;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
